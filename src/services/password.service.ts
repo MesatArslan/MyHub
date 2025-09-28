@@ -330,8 +330,8 @@ export class PasswordService {
     const direction = sortDirection === 'desc' ? -1 : 1;
 
     return passwords.sort((a, b) => {
-      let aValue: any;
-      let bValue: any;
+      let aValue: string | number;
+      let bValue: string | number;
 
       switch (sortBy) {
         case 'appName':
@@ -372,3 +372,4 @@ export class PasswordService {
     }
   }
 }
+

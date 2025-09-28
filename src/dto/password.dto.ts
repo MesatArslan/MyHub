@@ -101,10 +101,13 @@ export const toPasswordResponseDto = (entry: PasswordEntry): PasswordResponseDto
   website: entry.website,
   notes: entry.notes,
   category: entry.category,
+  customCategoryId: entry.customCategoryId,
   tags: entry.tags,
   isFavorite: entry.isFavorite,
   lastUsed: entry.lastUsed,
   strength: entry.strength,
+  googleAuthenticator: entry.googleAuthenticator,
+  phoneNumber: entry.phoneNumber,
   createdAt: entry.createdAt,
   updatedAt: entry.updatedAt,
 });
@@ -117,10 +120,13 @@ export const toPasswordEntry = (dto: CreatePasswordRequestDto, id?: string): Omi
   website: dto.website,
   notes: dto.notes,
   category: dto.category,
+  customCategoryId: dto.customCategoryId,
   tags: dto.tags || [],
   isFavorite: dto.isFavorite || false,
   lastUsed: undefined,
   strength: calculatePasswordStrength(dto.password),
+  googleAuthenticator: dto.googleAuthenticator,
+  phoneNumber: dto.phoneNumber,
 });
 
 // Helper functions
@@ -130,21 +136,21 @@ function generateId(): string {
 
 export function calculatePasswordStrength(password: string): PasswordStrength {
   let score = 0;
-  
+
   // Length check
   if (password.length >= 8) score += 1;
   if (password.length >= 12) score += 1;
-  
+
   // Character variety
   if (/[a-z]/.test(password)) score += 1;
   if (/[A-Z]/.test(password)) score += 1;
   if (/[0-9]/.test(password)) score += 1;
   if (/[^A-Za-z0-9]/.test(password)) score += 1;
-  
+
   // Common patterns (negative points)
   if (/(.)\1{2,}/.test(password)) score -= 1; // repeated characters
   if (/123|abc|qwe/i.test(password)) score -= 1; // common sequences
-  
+
   if (score <= 2) return PasswordStrength.WEAK;
   if (score <= 4) return PasswordStrength.MEDIUM;
   if (score <= 6) return PasswordStrength.STRONG;

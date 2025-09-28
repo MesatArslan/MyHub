@@ -219,7 +219,7 @@ export class StorageService {
     });
   }
 
-  static exportData(): Record<string, any> {
+  static exportData(): Record<string, unknown> {
     return {
       passwords: this.getPasswords(),
       routines: this.getRoutines(),
@@ -231,12 +231,12 @@ export class StorageService {
     };
   }
 
-  static importData(data: Record<string, any>): void {
-    if (data.passwords) this.savePasswords(data.passwords);
-    if (data.routines) this.saveRoutines(data.routines);
-    if (data.budgets) this.saveBudgets(data.budgets);
-    if (data.transactions) this.saveTransactions(data.transactions);
-    if (data.customCategories) this.saveCustomCategories(data.customCategories);
+  static importData(data: Record<string, unknown>): void {
+    if (data.passwords && Array.isArray(data.passwords)) this.savePasswords(data.passwords as PasswordEntry[]);
+    if (data.routines && Array.isArray(data.routines)) this.saveRoutines(data.routines as Routine[]);
+    if (data.budgets && Array.isArray(data.budgets)) this.saveBudgets(data.budgets as Budget[]);
+    if (data.transactions && Array.isArray(data.transactions)) this.saveTransactions(data.transactions as Transaction[]);
+    if (data.customCategories && Array.isArray(data.customCategories)) this.saveCustomCategories(data.customCategories as CustomCategory[]);
   }
 
   static getStorageInfo(): { used: number; available: number; total: number } {
@@ -253,7 +253,7 @@ export class StorageService {
       const available = total - used;
       
       return { used, available, total };
-    } catch (error) {
+    } catch {
       return { used: 0, available: 0, total: 0 };
     }
   }
