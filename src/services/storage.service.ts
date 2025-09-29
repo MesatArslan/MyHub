@@ -1,4 +1,4 @@
-import { PasswordEntry, Routine, Budget, Transaction, CustomCategory } from '@/types';
+import { PasswordEntry, Routine, Budget, Transaction, CustomCategory, RecurringTransactionTemplate, RecurrenceInterval, TransactionType, BudgetCategory } from '@/types';
 
 /**
  * Local Storage Service
@@ -11,6 +11,7 @@ export class StorageService {
     BUDGETS: 'myhub_budgets',
     TRANSACTIONS: 'myhub_transactions',
     CUSTOM_CATEGORIES: 'myhub_custom_categories',
+    RECURRING_TEMPLATES: 'myhub_recurring_templates',
     SETTINGS: 'myhub_settings',
   };
 
@@ -210,6 +211,95 @@ export class StorageService {
     const categories = this.getCustomCategories();
     const filteredCategories = categories.filter(c => c.id !== categoryId);
     this.saveCustomCategories(filteredCategories);
+  }
+
+  // Recurring templates storage methods
+  static saveRecurringTemplates(templates: RecurringTransactionTemplate[]): void {
+    this.setItem(this.STORAGE_KEYS.RECURRING_TEMPLATES, templates);
+  }
+
+  static getRecurringTemplates(): RecurringTransactionTemplate[] {
+    const templates = this.getItem<RecurringTransactionTemplate[]>(this.STORAGE_KEYS.RECURRING_TEMPLATES);
+    return templates || [];
+  }
+
+  static addRecurringTemplate(template: RecurringTransactionTemplate): void {
+    const templates = this.getRecurringTemplates();
+    templates.push(template);
+    this.saveRecurringTemplates(templates);
+  }
+
+  static updateRecurringTemplate(updatedTemplate: RecurringTransactionTemplate): void {
+    const templates = this.getRecurringTemplates();
+    const index = templates.findIndex(t => t.id === updatedTemplate.id);
+    if (index !== -1) {
+      templates[index] = { ...updatedTemplate, updatedAt: new Date() };
+      this.saveRecurringTemplates(templates);
+    }
+  }
+
+  static deleteRecurringTemplate(templateId: string): void {
+    const templates = this.getRecurringTemplates();
+    const filtered = templates.filter(t => t.id !== templateId);
+    this.saveRecurringTemplates(filtered);
+  }
+
+  // Run due recurring templates and generate transactions
+  static runDueRecurringTemplates(now: Date = new Date()): number {
+    const templates = this.getRecurringTemplates();
+    let createdCount = 0;
+    for (const template of templates) {
+      if (!template.isActive) continue;
+      if (template.endDate && template.endDate < now) continue;
+      if (template.nextRunAt && template.nextRunAt <= now) {
+        const transaction: Transaction = {
+          id: this.generateId(),
+          budgetId: template.budgetId || '',
+          amount: template.amount,
+          description: template.description,
+          category: template.customCategoryId ? BudgetCategory.OTHER : (template.category || BudgetCategory.OTHER),
+          type: template.type,
+          date: now,
+          createdAt: now,
+          updatedAt: now,
+          tags: ['recurring'],
+          receipt: undefined,
+          customCategoryId: template.customCategoryId,
+        };
+        this.addTransaction(transaction);
+        createdCount++;
+
+        // schedule next run
+        template.nextRunAt = this.calculateNextRun(template.nextRunAt, template.interval);
+        template.updatedAt = new Date();
+      }
+    }
+    // persist updated templates
+    this.saveRecurringTemplates(templates);
+    return createdCount;
+  }
+
+  private static calculateNextRun(from: Date, interval: RecurrenceInterval): Date {
+    const next = new Date(from);
+    switch (interval) {
+      case RecurrenceInterval.DAILY:
+        next.setDate(next.getDate() + 1);
+        break;
+      case RecurrenceInterval.WEEKLY:
+        next.setDate(next.getDate() + 7);
+        break;
+      case RecurrenceInterval.MONTHLY:
+        next.setMonth(next.getMonth() + 1);
+        break;
+      case RecurrenceInterval.YEARLY:
+        next.setFullYear(next.getFullYear() + 1);
+        break;
+    }
+    return next;
+  }
+
+  private static generateId(): string {
+    return Date.now().toString(36) + Math.random().toString(36).substr(2);
   }
 
   // Utility methods

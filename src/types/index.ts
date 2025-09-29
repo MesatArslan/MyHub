@@ -49,6 +49,8 @@ export interface CustomCategory extends BaseEntity {
   color: string;
   icon?: string;
   description?: string;
+  categoryType?: 'income' | 'expense';
+  isActive?: boolean;
 }
 
 // Routine Tracker Types
@@ -161,11 +163,33 @@ export interface Transaction extends BaseEntity {
   date: Date;
   tags?: string[];
   receipt?: string; // file path or URL
+  customCategoryId?: string; // link to CustomCategory if used
 }
 
 export enum TransactionType {
   INCOME = 'income',
   EXPENSE = 'expense'
+}
+
+// Recurring Transactions
+export enum RecurrenceInterval {
+  DAILY = 'daily',
+  WEEKLY = 'weekly',
+  MONTHLY = 'monthly',
+  YEARLY = 'yearly'
+}
+
+export interface RecurringTransactionTemplate extends BaseEntity {
+  description: string;
+  amount: number;
+  category?: BudgetCategory; // optional when using customCategoryId
+  customCategoryId?: string; // optional when using built-in category
+  type: TransactionType;
+  nextRunAt: Date;
+  interval: RecurrenceInterval;
+  isActive: boolean;
+  budgetId?: string;
+  endDate?: Date;
 }
 
 // API Response Types

@@ -17,7 +17,7 @@ export class CustomCategoryService {
   /**
    * Create a new custom category
    */
-  static createCustomCategory(name: string, color: string, icon?: string, description?: string): CustomCategory {
+  static createCustomCategory(name: string, color: string, icon?: string, description?: string, categoryType?: 'income' | 'expense'): CustomCategory {
     if (!name?.trim()) {
       throw new Error('Kategori adı gereklidir');
     }
@@ -39,6 +39,8 @@ export class CustomCategoryService {
       color: color.trim(),
       icon: icon?.trim(),
       description: description?.trim(),
+      categoryType: categoryType || 'expense',
+      isActive: true,
       createdAt: now,
       updatedAt: now
     };
