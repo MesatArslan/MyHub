@@ -1,4 +1,4 @@
-import { PasswordEntry, Routine, Budget, Transaction, CustomCategory, RecurringTransactionTemplate, RecurrenceInterval, TransactionType, BudgetCategory } from '@/types';
+import { PasswordEntry, Routine, Budget, Transaction, CustomCategory, RecurringTransactionTemplate, RecurrenceInterval, BudgetCategory } from '@/types';
 
 /**
  * Local Storage Service
