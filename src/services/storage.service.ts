@@ -1,4 +1,4 @@
-import { PasswordEntry, Routine, Budget, Transaction, CustomCategory, RecurringTransactionTemplate, RecurrenceInterval, BudgetCategory } from '@/types';
+import { PasswordEntry, Routine, Budget, Transaction, CustomCategory, RecurringTransactionTemplate, RecurrenceInterval, BudgetCategory, RoutineBlock, Goal } from '@/types';
 
 /**
  * Local Storage Service
@@ -13,6 +13,8 @@ export class StorageService {
     CUSTOM_CATEGORIES: 'myhub_custom_categories',
     RECURRING_TEMPLATES: 'myhub_recurring_templates',
     SETTINGS: 'myhub_settings',
+    ROUTINE_BLOCKS: 'myhub_routine_blocks',
+    GOALS: 'myhub_goals',
   };
 
   // Generic storage methods
@@ -327,6 +329,68 @@ export class StorageService {
     if (data.budgets && Array.isArray(data.budgets)) this.saveBudgets(data.budgets as Budget[]);
     if (data.transactions && Array.isArray(data.transactions)) this.saveTransactions(data.transactions as Transaction[]);
     if (data.customCategories && Array.isArray(data.customCategories)) this.saveCustomCategories(data.customCategories as CustomCategory[]);
+  }
+
+  // Routine Blocks storage methods
+  static saveRoutineBlocks(blocks: RoutineBlock[]): void {
+    this.setItem(this.STORAGE_KEYS.ROUTINE_BLOCKS, blocks);
+  }
+
+  static getRoutineBlocks(): RoutineBlock[] {
+    const blocks = this.getItem<RoutineBlock[]>(this.STORAGE_KEYS.ROUTINE_BLOCKS);
+    return blocks || [];
+  }
+
+  static addRoutineBlock(block: RoutineBlock): void {
+    const blocks = this.getRoutineBlocks();
+    blocks.push(block);
+    this.saveRoutineBlocks(blocks);
+  }
+
+  static updateRoutineBlock(updatedBlock: RoutineBlock): void {
+    const blocks = this.getRoutineBlocks();
+    const index = blocks.findIndex(b => b.id === updatedBlock.id);
+    if (index !== -1) {
+      blocks[index] = { ...updatedBlock, updatedAt: new Date() };
+      this.saveRoutineBlocks(blocks);
+    }
+  }
+
+  static deleteRoutineBlock(blockId: string): void {
+    const blocks = this.getRoutineBlocks();
+    const filteredBlocks = blocks.filter(b => b.id !== blockId);
+    this.saveRoutineBlocks(filteredBlocks);
+  }
+
+  // Goals storage methods
+  static saveGoals(goals: Goal[]): void {
+    this.setItem(this.STORAGE_KEYS.GOALS, goals);
+  }
+
+  static getGoals(): Goal[] {
+    const goals = this.getItem<Goal[]>(this.STORAGE_KEYS.GOALS);
+    return goals || [];
+  }
+
+  static addGoal(goal: Goal): void {
+    const goals = this.getGoals();
+    goals.push(goal);
+    this.saveGoals(goals);
+  }
+
+  static updateGoal(updatedGoal: Goal): void {
+    const goals = this.getGoals();
+    const index = goals.findIndex(g => g.id === updatedGoal.id);
+    if (index !== -1) {
+      goals[index] = { ...updatedGoal, updatedAt: new Date() };
+      this.saveGoals(goals);
+    }
+  }
+
+  static deleteGoal(goalId: string): void {
+    const goals = this.getGoals();
+    const filteredGoals = goals.filter(g => g.id !== goalId);
+    this.saveGoals(filteredGoals);
   }
 
   static getStorageInfo(): { used: number; available: number; total: number } {

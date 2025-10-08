@@ -1,62 +1,84 @@
 'use client';
 
-import { useState } from 'react';
-
-interface RoutineBlock {
-  id: string;
-  time: string;
-  title: string;
-  description: string;
-}
+import { useState, useEffect } from 'react';
+import { StorageService } from '@/services/storage.service';
+import { RoutineBlock } from '@/types';
 
 export default function TimeScheduleSection() {
-  const [routineBlocks, setRoutineBlocks] = useState<RoutineBlock[]>([
-    {
-      id: '1',
-      time: '07:00',
-      title: 'Uyanma & Zihin Hazırlığı',
-      description: '- Yataktan kalk, yatak topla\n- 1 bardak su iç\n- 5 dakika derin nefes'
-    },
-    {
-      id: '2',
-      time: '08:00',
-      title: 'Kahvaltı & Güne Hazırlık',
-      description: '- Sağlıklı bir kahvaltı yap\n- Haberleri hızlıca gözden geçir'
-    },
-    {
-      id: '3',
-      time: '09:00',
-      title: 'Odak Çalışması - Proje A',
-      description: '- Telefonu sessize al\n- Bugünkü 3 ana görevi belirle\n- En zor göreve başla'
-    },
-    {
-      id: '4',
-      time: '11:00',
-      title: 'Kısa Mola',
-      description: '- Gözleri dinlendir\n- Kısa bir yürüyüş yap\n- Su iç'
+  const [routineBlocks, setRoutineBlocks] = useState<RoutineBlock[]>([]);
+
+  // Load routine blocks from storage on component mount
+  useEffect(() => {
+    const savedBlocks = StorageService.getRoutineBlocks();
+    if (savedBlocks.length === 0) {
+      // Set default blocks if none exist
+      const defaultBlocks: RoutineBlock[] = [
+        {
+          id: '1',
+          time: '07:00',
+          title: 'Uyanma & Zihin Hazırlığı',
+          description: '- Yataktan kalk, yatak topla\n- 1 bardak su iç\n- 5 dakika derin nefes',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        },
+        {
+          id: '2',
+          time: '08:00',
+          title: 'Kahvaltı & Güne Hazırlık',
+          description: '- Sağlıklı bir kahvaltı yap\n- Haberleri hızlıca gözden geçir',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        },
+        {
+          id: '3',
+          time: '09:00',
+          title: 'Odak Çalışması - Proje A',
+          description: '- Telefonu sessize al\n- Bugünkü 3 ana görevi belirle\n- En zor göreve başla',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        },
+        {
+          id: '4',
+          time: '11:00',
+          title: 'Kısa Mola',
+          description: '- Gözleri dinlendir\n- Kısa bir yürüyüş yap\n- Su iç',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      ];
+      setRoutineBlocks(defaultBlocks);
+      StorageService.saveRoutineBlocks(defaultBlocks);
+    } else {
+      setRoutineBlocks(savedBlocks);
     }
-  ]);
+  }, []);
 
   const addRoutineBlock = () => {
     const newBlock: RoutineBlock = {
       id: Date.now().toString(),
       time: '12:00',
       title: '',
-      description: ''
+      description: '',
+      createdAt: new Date(),
+      updatedAt: new Date()
     };
-    setRoutineBlocks([...routineBlocks, newBlock]);
+    const updatedBlocks = [...routineBlocks, newBlock];
+    setRoutineBlocks(updatedBlocks);
+    StorageService.saveRoutineBlocks(updatedBlocks);
   };
 
   const updateRoutineBlock = (id: string, field: keyof RoutineBlock, value: string) => {
-    setRoutineBlocks(blocks => 
-      blocks.map(block => 
-        block.id === id ? { ...block, [field]: value } : block
-      )
+    const updatedBlocks = routineBlocks.map(block => 
+      block.id === id ? { ...block, [field]: value, updatedAt: new Date() } : block
     );
+    setRoutineBlocks(updatedBlocks);
+    StorageService.saveRoutineBlocks(updatedBlocks);
   };
 
   const removeRoutineBlock = (id: string) => {
-    setRoutineBlocks(blocks => blocks.filter(block => block.id !== id));
+    const updatedBlocks = routineBlocks.filter(block => block.id !== id);
+    setRoutineBlocks(updatedBlocks);
+    StorageService.saveRoutineBlocks(updatedBlocks);
   };
 
   return (

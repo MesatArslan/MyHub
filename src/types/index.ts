@@ -67,6 +67,20 @@ export interface Routine extends BaseEntity {
   lastCompleted?: Date;
 }
 
+// Daily Routine Types
+export interface RoutineBlock extends BaseEntity {
+  time: string; // HH:MM format
+  title: string;
+  description: string;
+}
+
+export interface Goal extends BaseEntity {
+  text: string;
+  completed: boolean;
+  type: 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom';
+  customDate?: string;
+}
+
 export enum RoutineCategory {
   HEALTH = 'health',
   WORK = 'work',
