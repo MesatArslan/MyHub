@@ -10,39 +10,7 @@ export default function GoalsSection() {
   // Load goals from storage on component mount
   useEffect(() => {
     const savedGoals = StorageService.getGoals();
-    if (savedGoals.length === 0) {
-      // Set default goals if none exist
-      const defaultGoals: Goal[] = [
-        {
-          id: '1',
-          text: 'X proje teklifini tamamla ve gönder.',
-          completed: false,
-          type: 'daily',
-          createdAt: new Date(),
-          updatedAt: new Date()
-        },
-        {
-          id: '2',
-          text: 'Spor salonuna git ve antrenman programını tamamla.',
-          completed: false,
-          type: 'weekly',
-          createdAt: new Date(),
-          updatedAt: new Date()
-        },
-        {
-          id: '3',
-          text: 'Akşam ailemle kaliteli 1 saat geçir (telefonsuz).',
-          completed: false,
-          type: 'monthly',
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }
-      ];
-      setGoals(defaultGoals);
-      StorageService.saveGoals(defaultGoals);
-    } else {
-      setGoals(savedGoals);
-    }
+    setGoals(savedGoals);
   }, []);
 
   const addGoal = () => {
@@ -199,7 +167,7 @@ export default function GoalsSection() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <p className="text-lg">Henüz hedef eklenmemiş</p>
-          <p className="text-sm">"Hedef Ekle" butonuna tıklayarak başlayın</p>
+          <p className="text-sm">&ldquo;Hedef Ekle&rdquo; butonuna tıklayarak başlayın</p>
         </div>
       )}
     </div>

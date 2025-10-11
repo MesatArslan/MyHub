@@ -10,47 +10,7 @@ export default function TimeScheduleSection() {
   // Load routine blocks from storage on component mount
   useEffect(() => {
     const savedBlocks = StorageService.getRoutineBlocks();
-    if (savedBlocks.length === 0) {
-      // Set default blocks if none exist
-      const defaultBlocks: RoutineBlock[] = [
-        {
-          id: '1',
-          time: '07:00',
-          title: 'Uyanma & Zihin Hazırlığı',
-          description: '- Yataktan kalk, yatak topla\n- 1 bardak su iç\n- 5 dakika derin nefes',
-          createdAt: new Date(),
-          updatedAt: new Date()
-        },
-        {
-          id: '2',
-          time: '08:00',
-          title: 'Kahvaltı & Güne Hazırlık',
-          description: '- Sağlıklı bir kahvaltı yap\n- Haberleri hızlıca gözden geçir',
-          createdAt: new Date(),
-          updatedAt: new Date()
-        },
-        {
-          id: '3',
-          time: '09:00',
-          title: 'Odak Çalışması - Proje A',
-          description: '- Telefonu sessize al\n- Bugünkü 3 ana görevi belirle\n- En zor göreve başla',
-          createdAt: new Date(),
-          updatedAt: new Date()
-        },
-        {
-          id: '4',
-          time: '11:00',
-          title: 'Kısa Mola',
-          description: '- Gözleri dinlendir\n- Kısa bir yürüyüş yap\n- Su iç',
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }
-      ];
-      setRoutineBlocks(defaultBlocks);
-      StorageService.saveRoutineBlocks(defaultBlocks);
-    } else {
-      setRoutineBlocks(savedBlocks);
-    }
+    setRoutineBlocks(savedBlocks);
   }, []);
 
   const addRoutineBlock = () => {
@@ -102,7 +62,7 @@ export default function TimeScheduleSection() {
       </div>
 
       <div className="space-y-6">
-        {routineBlocks.map((block, index) => (
+        {routineBlocks.map((block) => (
           <div key={block.id} className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
             <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
               {/* Zaman */}
@@ -169,7 +129,7 @@ export default function TimeScheduleSection() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <p className="text-lg">Henüz rutin bloğu eklenmemiş</p>
-          <p className="text-sm">"Rutin Ekle" butonuna tıklayarak başlayın</p>
+          <p className="text-sm">&ldquo;Rutin Ekle&rdquo; butonuna tıklayarak başlayın</p>
         </div>
       )}
     </div>
