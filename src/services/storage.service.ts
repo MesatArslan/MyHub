@@ -331,35 +331,62 @@ export class StorageService {
     if (data.customCategories && Array.isArray(data.customCategories)) this.saveCustomCategories(data.customCategories as CustomCategory[]);
   }
 
-  // Routine Blocks storage methods
-  static saveRoutineBlocks(blocks: RoutineBlock[]): void {
-    this.setItem(this.STORAGE_KEYS.ROUTINE_BLOCKS, blocks);
-  }
-
-  static getRoutineBlocks(): RoutineBlock[] {
-    const blocks = this.getItem<RoutineBlock[]>(this.STORAGE_KEYS.ROUTINE_BLOCKS);
-    return blocks || [];
-  }
-
-  static addRoutineBlock(block: RoutineBlock): void {
-    const blocks = this.getRoutineBlocks();
-    blocks.push(block);
-    this.saveRoutineBlocks(blocks);
-  }
-
-  static updateRoutineBlock(updatedBlock: RoutineBlock): void {
-    const blocks = this.getRoutineBlocks();
-    const index = blocks.findIndex(b => b.id === updatedBlock.id);
-    if (index !== -1) {
-      blocks[index] = { ...updatedBlock, updatedAt: new Date() };
-      this.saveRoutineBlocks(blocks);
+  // Routine Blocks storage methods (day-specific)
+  static saveRoutineBlocks(blocks: RoutineBlock[], day?: string): void {
+    if (day) {
+      // Save blocks for specific day
+      const dayKey = `${this.STORAGE_KEYS.ROUTINE_BLOCKS}_${day}`;
+      this.setItem(dayKey, blocks);
+    } else {
+      // Save all blocks (for backward compatibility)
+      this.setItem(this.STORAGE_KEYS.ROUTINE_BLOCKS, blocks);
     }
   }
 
-  static deleteRoutineBlock(blockId: string): void {
-    const blocks = this.getRoutineBlocks();
+  static getRoutineBlocks(day?: string): RoutineBlock[] {
+    if (day) {
+      // Get blocks for specific day
+      const dayKey = `${this.STORAGE_KEYS.ROUTINE_BLOCKS}_${day}`;
+      const blocks = this.getItem<RoutineBlock[]>(dayKey);
+      return blocks || [];
+    } else {
+      // Get all blocks (for backward compatibility)
+      const blocks = this.getItem<RoutineBlock[]>(this.STORAGE_KEYS.ROUTINE_BLOCKS);
+      return blocks || [];
+    }
+  }
+
+  static addRoutineBlock(block: RoutineBlock, day?: string): void {
+    const blocks = this.getRoutineBlocks(day);
+    blocks.push(block);
+    this.saveRoutineBlocks(blocks, day);
+  }
+
+  static updateRoutineBlock(updatedBlock: RoutineBlock, day?: string): void {
+    const blocks = this.getRoutineBlocks(day);
+    const index = blocks.findIndex(b => b.id === updatedBlock.id);
+    if (index !== -1) {
+      blocks[index] = { ...updatedBlock, updatedAt: new Date() };
+      this.saveRoutineBlocks(blocks, day);
+    }
+  }
+
+  static deleteRoutineBlock(blockId: string, day?: string): void {
+    const blocks = this.getRoutineBlocks(day);
     const filteredBlocks = blocks.filter(b => b.id !== blockId);
-    this.saveRoutineBlocks(filteredBlocks);
+    this.saveRoutineBlocks(filteredBlocks, day);
+  }
+
+  // Get routine blocks for all days
+  static getAllWeeklyRoutineBlocks(): Record<string, RoutineBlock[]> {
+    const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    const weeklyBlocks: Record<string, RoutineBlock[]> = {};
+    
+    days.forEach(day => {
+      weeklyBlocks[day] = this.getRoutineBlocks(day);
+    });
+    
+    return weeklyBlocks;
   }
 
   // Goals storage methods

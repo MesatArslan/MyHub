@@ -1,4 +1,4 @@
-import { PasswordEntry, PasswordCategory, PasswordStrength } from '@/types';
+import { PasswordEntry, PasswordCategory, PasswordStrength, CustomCategory } from '@/types';
 import { 
   CreatePasswordRequestDto, 
   UpdatePasswordRequestDto, 
@@ -358,6 +358,124 @@ export class PasswordService {
       if (aValue > bValue) return 1 * direction;
       return 0;
     });
+  }
+
+  /**
+   * Export all passwords and custom categories to JSON
+   */
+  static async exportData(): Promise<Blob> {
+    const passwords = StorageService.getPasswords();
+    const customCategories = StorageService.getCustomCategories();
+    
+    const exportData = {
+      version: '1.0',
+      exportDate: new Date().toISOString(),
+      passwords: passwords.map(toPasswordResponseDto),
+      customCategories: customCategories
+    };
+    
+    const jsonString = JSON.stringify(exportData, null, 2);
+    return new Blob([jsonString], { type: 'application/json' });
+  }
+
+  /**
+   * Import passwords and custom categories from JSON
+   */
+  static async importData(file: File): Promise<{ importedPasswords: number, importedCategories: number, errors: string[] }> {
+    const errors: string[] = [];
+    let importedPasswords = 0;
+    let importedCategories = 0;
+    
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      
+      // Validate data structure
+      if (!data.passwords || !Array.isArray(data.passwords)) {
+        throw new Error('Geçersiz dosya formatı: şifreler bulunamadı');
+      }
+      
+      if (!data.customCategories || !Array.isArray(data.customCategories)) {
+        throw new Error('Geçersiz dosya formatı: özel kategoriler bulunamadı');
+      }
+      
+      // Import custom categories first
+      for (const categoryData of data.customCategories) {
+        try {
+          // Check if category already exists
+          const existingCategories = StorageService.getCustomCategories();
+          const exists = existingCategories.some(cat => cat.name === categoryData.name);
+          
+          if (!exists) {
+            const category: CustomCategory = {
+              id: this.generateId(),
+              name: categoryData.name,
+              color: categoryData.color,
+              icon: categoryData.icon || '🏠',
+              description: categoryData.description || '',
+              categoryType: categoryData.categoryType || 'expense',
+              isActive: true,
+              createdAt: new Date(),
+              updatedAt: new Date()
+            };
+            StorageService.addCustomCategory(category);
+            importedCategories++;
+          }
+        } catch (error) {
+          errors.push(`Kategori "${categoryData.name}" içe aktarılamadı: ${error instanceof Error ? error.message : 'Bilinmeyen hata'}`);
+        }
+      }
+      
+      // Import passwords
+      for (const passwordData of data.passwords) {
+        try {
+          // Check if password already exists
+          const existingPasswords = StorageService.getPasswords();
+          const exists = existingPasswords.some(p => p.appName === passwordData.appName && p.username === passwordData.username);
+          
+          if (!exists) {
+            const passwordEntry = toPasswordEntry({
+              appName: passwordData.appName,
+              username: passwordData.username,
+              password: passwordData.password,
+              website: passwordData.website,
+              notes: passwordData.notes,
+              category: passwordData.category,
+              customCategoryId: passwordData.customCategoryId,
+              tags: passwordData.tags || [],
+              isFavorite: passwordData.isFavorite || false,
+              googleAuthenticator: passwordData.googleAuthenticator || '',
+              phoneNumber: passwordData.phoneNumber || ''
+            });
+            
+            const entry: PasswordEntry = {
+              ...passwordEntry,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              strength: calculatePasswordStrength(passwordData.password),
+              lastUsed: passwordData.lastUsed ? new Date(passwordData.lastUsed) : undefined
+            };
+            
+            StorageService.addPassword(entry);
+            importedPasswords++;
+          }
+        } catch (error) {
+          errors.push(`Şifre "${passwordData.appName}" içe aktarılamadı: ${error instanceof Error ? error.message : 'Bilinmeyen hata'}`);
+        }
+      }
+      
+    } catch (error) {
+      throw new Error(`Dosya okunamadı: ${error instanceof Error ? error.message : 'Bilinmeyen hata'}`);
+    }
+    
+    return { importedPasswords, importedCategories, errors };
+  }
+
+  /**
+   * Generate unique ID
+   */
+  private static generateId(): string {
+    return Date.now().toString(36) + Math.random().toString(36).substr(2);
   }
 
   /**

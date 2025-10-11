@@ -4,14 +4,31 @@ import { useState, useEffect } from 'react';
 import { StorageService } from '@/services/storage.service';
 import { RoutineBlock } from '@/types';
 
-export default function TimeScheduleSection() {
+interface TimeScheduleSectionProps {
+  selectedDay: string;
+}
+
+export default function TimeScheduleSection({ selectedDay }: TimeScheduleSectionProps) {
   const [routineBlocks, setRoutineBlocks] = useState<RoutineBlock[]>([]);
 
-  // Load routine blocks from storage on component mount
+  // Load routine blocks for selected day
   useEffect(() => {
-    const savedBlocks = StorageService.getRoutineBlocks();
+    const savedBlocks = StorageService.getRoutineBlocks(selectedDay);
     setRoutineBlocks(savedBlocks);
-  }, []);
+  }, [selectedDay]);
+
+  const getDayLabel = (day: string) => {
+    const dayLabels: Record<string, string> = {
+      monday: 'Pazartesi',
+      tuesday: 'Salı',
+      wednesday: 'Çarşamba',
+      thursday: 'Perşembe',
+      friday: 'Cuma',
+      saturday: 'Cumartesi',
+      sunday: 'Pazar'
+    };
+    return dayLabels[day] || day;
+  };
 
   const addRoutineBlock = () => {
     const newBlock: RoutineBlock = {
@@ -24,7 +41,7 @@ export default function TimeScheduleSection() {
     };
     const updatedBlocks = [...routineBlocks, newBlock];
     setRoutineBlocks(updatedBlocks);
-    StorageService.saveRoutineBlocks(updatedBlocks);
+    StorageService.saveRoutineBlocks(updatedBlocks, selectedDay);
   };
 
   const updateRoutineBlock = (id: string, field: keyof RoutineBlock, value: string) => {
@@ -32,13 +49,13 @@ export default function TimeScheduleSection() {
       block.id === id ? { ...block, [field]: value, updatedAt: new Date() } : block
     );
     setRoutineBlocks(updatedBlocks);
-    StorageService.saveRoutineBlocks(updatedBlocks);
+    StorageService.saveRoutineBlocks(updatedBlocks, selectedDay);
   };
 
   const removeRoutineBlock = (id: string) => {
     const updatedBlocks = routineBlocks.filter(block => block.id !== id);
     setRoutineBlocks(updatedBlocks);
-    StorageService.saveRoutineBlocks(updatedBlocks);
+    StorageService.saveRoutineBlocks(updatedBlocks, selectedDay);
   };
 
   return (
@@ -48,7 +65,7 @@ export default function TimeScheduleSection() {
           <svg className="w-6 h-6 mr-3 text-pink-600 dark:text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          Zaman Çizelgesi
+          Zaman Çizelgesi - {getDayLabel(selectedDay)}
         </h2>
         <button
           onClick={addRoutineBlock}
