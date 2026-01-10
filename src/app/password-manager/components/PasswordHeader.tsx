@@ -16,7 +16,7 @@ export default function PasswordHeader({
   onNewPassword,
 }: PasswordHeaderProps) {
   return (
-    <div className="glass border-b border-white/20 dark:border-gray-700/50">
+    <div className="glass border-b border-white/20 dark:border-gray-700/50 relative z-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center space-x-4">

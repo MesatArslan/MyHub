@@ -14,8 +14,11 @@ export default function RoutineTracker() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 dark:from-gray-900 dark:via-pink-900 dark:to-orange-900">
-      <div className="container mx-auto px-4 py-8">
+    <div className="relative min-h-screen">
+      {/* Fixed Background */}
+      <div className="fixed inset-0 bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 dark:from-gray-900 dark:via-pink-900 dark:to-orange-900 -z-10"></div>
+      
+      <div className="container mx-auto px-4 py-8 relative z-10">
         
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
