@@ -74,6 +74,14 @@ export interface RoutineBlock extends BaseEntity {
   description: string;
 }
 
+export interface RoutineScheduleItem extends BaseEntity {
+  startTime: string; // HH:MM format
+  endTime: string; // HH:MM format
+  whatToDo: string; // what I'll do
+  whereToDo: string; // where will I do
+  day: string; // day of week (monday, tuesday, etc.)
+}
+
 export interface Goal extends BaseEntity {
   text: string;
   completed: boolean;

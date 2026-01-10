@@ -1,4 +1,4 @@
-import { PasswordEntry, Routine, Budget, Transaction, CustomCategory, RecurringTransactionTemplate, RecurrenceInterval, BudgetCategory, RoutineBlock, Goal } from '@/types';
+import { PasswordEntry, Routine, Budget, Transaction, CustomCategory, RecurringTransactionTemplate, RecurrenceInterval, BudgetCategory, RoutineBlock, Goal, RoutineScheduleItem } from '@/types';
 
 /**
  * Local Storage Service
@@ -15,6 +15,7 @@ export class StorageService {
     SETTINGS: 'myhub_settings',
     ROUTINE_BLOCKS: 'myhub_routine_blocks',
     GOALS: 'myhub_goals',
+    ROUTINE_SCHEDULE_ITEMS: 'myhub_routine_schedule_items',
   };
 
   // Generic storage methods
@@ -418,6 +419,48 @@ export class StorageService {
     const goals = this.getGoals();
     const filteredGoals = goals.filter(g => g.id !== goalId);
     this.saveGoals(filteredGoals);
+  }
+
+  // Routine Schedule Items storage methods (day-specific)
+  static saveRoutineScheduleItems(items: RoutineScheduleItem[], day?: string): void {
+    if (day) {
+      const dayKey = `${this.STORAGE_KEYS.ROUTINE_SCHEDULE_ITEMS}_${day}`;
+      this.setItem(dayKey, items);
+    } else {
+      this.setItem(this.STORAGE_KEYS.ROUTINE_SCHEDULE_ITEMS, items);
+    }
+  }
+
+  static getRoutineScheduleItems(day?: string): RoutineScheduleItem[] {
+    if (day) {
+      const dayKey = `${this.STORAGE_KEYS.ROUTINE_SCHEDULE_ITEMS}_${day}`;
+      const items = this.getItem<RoutineScheduleItem[]>(dayKey);
+      return items || [];
+    } else {
+      const items = this.getItem<RoutineScheduleItem[]>(this.STORAGE_KEYS.ROUTINE_SCHEDULE_ITEMS);
+      return items || [];
+    }
+  }
+
+  static addRoutineScheduleItem(item: RoutineScheduleItem, day?: string): void {
+    const items = this.getRoutineScheduleItems(day || item.day);
+    items.push(item);
+    this.saveRoutineScheduleItems(items, day || item.day);
+  }
+
+  static updateRoutineScheduleItem(updatedItem: RoutineScheduleItem, day?: string): void {
+    const items = this.getRoutineScheduleItems(day || updatedItem.day);
+    const index = items.findIndex(i => i.id === updatedItem.id);
+    if (index !== -1) {
+      items[index] = { ...updatedItem, updatedAt: new Date() };
+      this.saveRoutineScheduleItems(items, day || updatedItem.day);
+    }
+  }
+
+  static deleteRoutineScheduleItem(itemId: string, day?: string): void {
+    const items = this.getRoutineScheduleItems(day);
+    const filteredItems = items.filter(i => i.id !== itemId);
+    this.saveRoutineScheduleItems(filteredItems, day);
   }
 
   static getStorageInfo(): { used: number; available: number; total: number } {

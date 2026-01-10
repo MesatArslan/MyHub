@@ -1,4 +1,4 @@
-import { Routine, RoutineCategory, Priority, DayOfWeek, RoutineCompletion } from '@/types';
+import { Routine, RoutineCategory, Priority, DayOfWeek, RoutineCompletion, RoutineScheduleItem } from '@/types';
 
 // Request DTOs
 export interface CreateRoutineRequestDto {
@@ -125,6 +125,55 @@ export const toRoutineCompletion = (dto: CompleteRoutineRequestDto, id?: string)
   duration: dto.duration,
   notes: dto.notes,
   rating: dto.rating,
+});
+
+// Routine Schedule Item DTOs
+export interface CreateRoutineScheduleItemDto {
+  startTime: string; // HH:MM format
+  endTime: string; // HH:MM format
+  whatToDo: string;
+  whereToDo: string;
+  day: string;
+}
+
+export interface UpdateRoutineScheduleItemDto {
+  id: string;
+  startTime?: string;
+  endTime?: string;
+  whatToDo?: string;
+  whereToDo?: string;
+}
+
+export interface RoutineScheduleItemResponseDto {
+  id: string;
+  startTime: string;
+  endTime: string;
+  whatToDo: string;
+  whereToDo: string;
+  day: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Transform functions for schedule items
+export const toRoutineScheduleItem = (dto: CreateRoutineScheduleItemDto, id?: string): Omit<RoutineScheduleItem, 'createdAt' | 'updatedAt'> => ({
+  id: id || generateId(),
+  startTime: dto.startTime,
+  endTime: dto.endTime,
+  whatToDo: dto.whatToDo,
+  whereToDo: dto.whereToDo,
+  day: dto.day,
+});
+
+export const toRoutineScheduleItemResponseDto = (item: RoutineScheduleItem): RoutineScheduleItemResponseDto => ({
+  id: item.id,
+  startTime: item.startTime,
+  endTime: item.endTime,
+  whatToDo: item.whatToDo,
+  whereToDo: item.whereToDo,
+  day: item.day,
+  createdAt: item.createdAt,
+  updatedAt: item.updatedAt,
 });
 
 // Helper functions
