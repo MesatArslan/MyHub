@@ -91,42 +91,6 @@ export default function Home() {
             </div>
           </Link>
         </div>
-
-        {/* Features Section */}
-        <div className="mt-20 text-center">
-          <h3 className="text-3xl font-bold text-gray-900 dark:text-white mb-12">
-            Neden MyHub?
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            <div className="text-center glass rounded-2xl p-6 hover:scale-105 transition-all duration-300">
-              <div className="w-16 h-16 gradient-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-              </div>
-              <h4 className="font-bold text-gray-900 dark:text-white mb-2 text-lg">Güvenli</h4>
-              <p className="text-gray-600 dark:text-gray-300">Verileriniz sadece cihazınızda saklanır</p>
-            </div>
-            <div className="text-center glass rounded-2xl p-6 hover:scale-105 transition-all duration-300">
-              <div className="w-16 h-16 gradient-warm rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              </div>
-              <h4 className="font-bold text-gray-900 dark:text-white mb-2 text-lg">Hızlı</h4>
-              <p className="text-gray-600 dark:text-gray-300">Modern teknoloji ile optimize edilmiş</p>
-            </div>
-            <div className="text-center glass rounded-2xl p-6 hover:scale-105 transition-all duration-300">
-              <div className="w-16 h-16 gradient-cool rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                </svg>
-              </div>
-              <h4 className="font-bold text-gray-900 dark:text-white mb-2 text-lg">Kolay</h4>
-              <p className="text-gray-600 dark:text-gray-300">Sezgisel ve kullanıcı dostu arayüz</p>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
