@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { PasswordResponseDto } from '@/dto';
 import { PasswordCategory, CustomCategory } from '@/types';
 import { PasswordService, CustomCategoryService } from '@/services';
-import PasswordHeader from './components/PasswordHeader';
+import { useNavbarActions } from '@/app/components/NavbarActions';
 import PasswordStats from './components/PasswordStats';
 import PasswordSearch from './components/PasswordSearch';
 import PasswordList from './components/PasswordList';
@@ -60,11 +60,29 @@ export default function PasswordManager() {
   });
 
   const [formErrors, setFormErrors] = useState<{[key: string]: string}>({});
+  const { setActions } = useNavbarActions();
+
+  const loadPasswords = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await PasswordService.getPasswords();
+      setPasswords(response.passwords);
+      
+      // Load custom categories
+      const categories = CustomCategoryService.getCustomCategories();
+      setCustomCategories(categories);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Şifreler yüklenirken hata oluştu');
+    } finally {
+      setLoading(false);
+    }
+  }, [setLoading, setError, setPasswords, setCustomCategories]);
 
   // Load passwords on component mount
   useEffect(() => {
     loadPasswords();
-  }, []);
+  }, [loadPasswords]);
 
   // Close filter dropdown when clicking outside
   useEffect(() => {
@@ -83,24 +101,29 @@ export default function PasswordManager() {
 
   // ESC key handling removed - modal only closes with close button
 
-  const loadPasswords = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await PasswordService.getPasswords();
-      setPasswords(response.passwords);
-      
-      // Load custom categories
-      const categories = CustomCategoryService.getCustomCategories();
-      setCustomCategories(categories);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Şifreler yüklenirken hata oluştu');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Load passwords on component mount
+  useEffect(() => {
+    loadPasswords();
+  }, [loadPasswords]);
 
-  const handleExport = async () => {
+  // Close filter dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (showFilterDropdown && !target.closest('.filter-dropdown')) {
+        setShowFilterDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showFilterDropdown]);
+
+  // ESC key handling removed - modal only closes with close button
+
+  const handleExport = useCallback(async () => {
     try {
       const blob = await PasswordService.exportData();
       const url = URL.createObjectURL(blob);
@@ -115,9 +138,9 @@ export default function PasswordManager() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Dışa aktarma sırasında hata oluştu');
     }
-  };
+  }, [setShowExportModal, setError]);
 
-  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImport = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -134,7 +157,75 @@ export default function PasswordManager() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'İçe aktarma sırasında hata oluştu');
     }
-  };
+  }, [setShowImportModal, setImportResult, setError, loadPasswords]);
+
+  // Set navbar actions
+  useEffect(() => {
+    setActions(
+      <>
+        <button
+          onClick={handleExport}
+          className="bg-green-500 hover:bg-green-600 hover:scale-105 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center shadow-sm hover:shadow-md"
+        >
+          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          Dışa Aktar
+        </button>
+        <label className="bg-blue-500 hover:bg-blue-600 hover:scale-105 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center shadow-sm hover:shadow-md cursor-pointer">
+          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+          </svg>
+          İçe Aktar
+          <input
+            type="file"
+            accept=".json"
+            onChange={handleImport}
+            className="hidden"
+          />
+        </label>
+        <button
+          onClick={() => setShowCategoryManagement(true)}
+          className="gradient-primary hover:scale-105 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center shadow-sm hover:shadow-md"
+        >
+          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          Kategorileri Yönet
+        </button>
+        <button
+          onClick={() => {
+            setShowCategoryModal(true);
+            setEditingCategory(null);
+            setNewCategory({ name: '', color: '#3B82F6', icon: '🏠', description: '' });
+          }}
+          className="gradient-warm hover:scale-105 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center shadow-sm hover:shadow-md"
+        >
+          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          </svg>
+          Yeni Kategori
+        </button>
+        <button
+          onClick={() => {
+            setShowAddForm(true);
+            setFormErrors({});
+          }}
+          className="gradient-cool hover:scale-105 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center shadow-sm hover:shadow-md"
+        >
+          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          </svg>
+          Yeni Şifre
+        </button>
+      </>
+    );
+
+    return () => {
+      setActions(null);
+    };
+  }, [setActions, handleExport, handleImport, setShowCategoryManagement, setShowCategoryModal, setEditingCategory, setNewCategory, setShowAddForm, setFormErrors]);
 
   const filteredPasswords = passwords.filter(password => {
     // Search filter
@@ -470,21 +561,6 @@ export default function PasswordManager() {
       {/* Fixed Background */}
       <div className="fixed inset-0 bg-gradient-to-br from-indigo-50 via-blue-50 to-purple-50 dark:from-gray-900 dark:via-indigo-900 dark:to-purple-900 -z-10"></div>
       
-      <PasswordHeader
-        onExport={handleExport}
-        onImport={handleImport}
-        onCategoryManagement={() => setShowCategoryManagement(true)}
-        onNewCategory={() => {
-                        setShowCategoryModal(true);
-                        setEditingCategory(null);
-                        setNewCategory({ name: '', color: '#3B82F6', icon: '🏠', description: '' });
-                      }}
-        onNewPassword={() => {
-                        setShowAddForm(true);
-                        setFormErrors({});
-                      }}
-      />
-
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
         <PasswordStats passwords={passwords} />

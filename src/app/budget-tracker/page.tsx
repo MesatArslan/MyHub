@@ -275,37 +275,6 @@ export default function BudgetTracker() {
       <div className="fixed inset-0 bg-gradient-to-br from-cyan-50 via-blue-50 to-teal-50 dark:from-gray-900 dark:via-cyan-900 dark:to-teal-900 -z-10"></div>
       
       <div className="container mx-auto px-4 py-8 relative z-10">
-        
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center space-x-4">
-            <Link 
-              href="/" 
-              className="flex items-center text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors"
-            >
-              <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              Ana Sayfa
-            </Link>
-          </div>
-          <h1 className="text-4xl font-bold gradient-cool bg-clip-text text-transparent">
-            Bütçe Takip
-          </h1>
-          <div className="w-32 flex justify-end">
-            <button
-              onClick={() => setShowSettings(true)}
-              className="flex items-center space-x-2 px-3 py-2 bg-gray-900/70 text-white rounded-lg hover:bg-gray-900/80 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
-              title="Ayarlar"
-            >
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8a4 4 0 100 8 4 4 0 000-8zm8.94 4a7.964 7.964 0 00-.34-2.24l2.02-1.56-2-3.46-2.45 1a8.06 8.06 0 00-1.94-1.13l-.37-2.6h-4l-.37 2.6a8.06 8.06 0 00-1.94 1.13l-2.45-1-2 3.46 2.02 1.56c-.12.73-.15 1.49-.09 2.24-.06.75-.03 1.51.09 2.24L2.4 15.8l2 3.46 2.45-1c.59.46 1.24.84 1.94 1.13l.37 2.6h4l.37-2.6c.7-.29 1.35-.67 1.94-1.13l2.45 1 2-3.46-2.02-1.56c.12-.73.15-1.49.09-2.24z" />
-              </svg>
-              <span>Ayarlar</span>
-            </button>
-          </div>
-        </div>
-
         {/* Navigation Tabs */}
         <div className="flex space-x-1 mb-8 bg-white/10 dark:bg-gray-800/20 rounded-xl p-1 backdrop-blur-sm">
           {([
