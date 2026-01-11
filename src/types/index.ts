@@ -186,6 +186,7 @@ export interface Transaction extends BaseEntity {
   tags?: string[];
   receipt?: string; // file path or URL
   customCategoryId?: string; // link to CustomCategory if used
+  accountTarget?: string; // wallet or bank account where money goes
 }
 
 export enum TransactionType {

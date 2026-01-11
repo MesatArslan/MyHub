@@ -1,10 +1,9 @@
 'use client';
 
-import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { StorageService } from '@/services/storage.service';
 import { CustomCategoryService } from '@/services/custom-category.service';
-import { Budget, Transaction, BudgetCategory, TransactionType, Currency, BudgetType, BudgetPeriod, RecurringTransactionTemplate, RecurrenceInterval } from '@/types';
+import { Budget, Transaction, BudgetCategory, TransactionType, Currency, BudgetType, BudgetPeriod, RecurrenceInterval } from '@/types';
 
 type Tab = 'dashboard' | 'budgets' | 'analytics' | 'incomes' | 'expenses';
 
@@ -35,8 +34,6 @@ export default function BudgetTracker() {
     date: new Date().toISOString().split('T')[0]
   });
 
-  const [incomeQuick, setIncomeQuick] = useState({ description: '', amount: '' });
-  const [expenseQuick, setExpenseQuick] = useState({ description: '', amount: '' });
   // Settings modal state
   const [showSettings, setShowSettings] = useState(false);
   const [settingsTab, setSettingsTab] = useState<'income' | 'expense' | 'color'>('income');
@@ -46,19 +43,20 @@ export default function BudgetTracker() {
   const [monthlyStartDay, setMonthlyStartDay] = useState<number>(1);
   const [monthlyEndDay, setMonthlyEndDay] = useState<number>(30);
   const [customCategories, setCustomCategories] = useState<ReturnType<typeof CustomCategoryService.getCustomCategories>>([]);
-  const [incomeCustomCategoryId, setIncomeCustomCategoryId] = useState<string>('');
-  const [expenseCustomCategoryId, setExpenseCustomCategoryId] = useState<string>('');
-  const [incomeCategorySelect, setIncomeCategorySelect] = useState<string>(BudgetCategory.FOOD);
-  const [expenseCategorySelect, setExpenseCategorySelect] = useState<string>(BudgetCategory.FOOD);
   const [analyticsFrom, setAnalyticsFrom] = useState<string>('');
   const [analyticsTo, setAnalyticsTo] = useState<string>('');
   
-  // Filters for incomes/expenses combined view
-  type TxRecurrenceFilter = 'all' | 'recurring' | 'oneoff';
-  const [incomeFilter, setIncomeFilter] = useState<TxRecurrenceFilter>('all');
-  const [expenseFilter, setExpenseFilter] = useState<TxRecurrenceFilter>('all');
+  // Income form state
+  const [editingIncomeId, setEditingIncomeId] = useState<string | null>(null);
+  const [incomeForm, setIncomeForm] = useState({
+    amount: '',
+    source: '',
+    date: new Date().toISOString().split('T')[0],
+    accountTarget: '',
+    description: ''
+  });
 
-  const [recurringForm, setRecurringForm] = useState({
+  const [] = useState({
     type: TransactionType.EXPENSE as TransactionType,
     description: '',
     amount: '',
@@ -79,6 +77,33 @@ export default function BudgetTracker() {
     [BudgetCategory.SAVINGS]: 'Birikim',
     [BudgetCategory.INVESTMENT]: 'Yatırım',
     [BudgetCategory.OTHER]: 'Diğer',
+  };
+
+  // Format number to Turkish format: 300.000,25
+  const formatTurkishNumber = (value: string | number): string => {
+    if (value === '' || value === null || value === undefined) return '';
+    const numValue = typeof value === 'string' 
+      ? parseFloat(value.replace(/\./g, '').replace(',', '.')) 
+      : value;
+    if (isNaN(numValue) || numValue === 0) return '';
+    
+    const parts = numValue.toFixed(2).split('.');
+    const integerPart = parts[0];
+    const decimalPart = parts[1];
+    
+    // Add thousand separators (dots)
+    const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    
+    return `${formattedInteger},${decimalPart}`;
+  };
+
+  // Parse Turkish format to number: "300.000,25" -> 300000.25
+  const parseTurkishNumber = (value: string): number => {
+    if (!value || value.trim() === '') return 0;
+    // Remove dots (thousand separators) and replace comma with dot for decimal
+    const cleaned = value.replace(/\./g, '').replace(',', '.');
+    const parsed = parseFloat(cleaned);
+    return isNaN(parsed) ? 0 : parsed;
   };
 
   // Load data on component mount
@@ -562,204 +587,283 @@ export default function BudgetTracker() {
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Gelirler</h2>
             </div>
-            <div className="glass rounded-2xl p-6 shadow-xl space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <input
-                  type="text"
-                  value={incomeQuick.description}
-                  onChange={(e) => setIncomeQuick({ ...incomeQuick, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white/50 dark:bg-gray-800/50 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  placeholder="Açıklama"
-                />
-                <select
-                  value={incomeCustomCategoryId ? `custom:${incomeCustomCategoryId}` : incomeCategorySelect}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (val.startsWith('custom:')) {
-                      const id = val.replace('custom:', '');
-                      setIncomeCustomCategoryId(id);
-                      setIncomeCategorySelect(BudgetCategory.OTHER);
-                      setTransactionForm({ ...transactionForm, category: BudgetCategory.OTHER });
-                    } else {
-                      setIncomeCustomCategoryId('');
-                      setIncomeCategorySelect(val);
-                      setTransactionForm({ ...transactionForm, category: val as BudgetCategory });
-                    }
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white/50 dark:bg-gray-800/50 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                >
-                  {Object.values(BudgetCategory).map((category) => (
-                    <option key={category} value={category}>{categoryLabel[category]}</option>
-                  ))}
-                  {customCategories.filter(cc => (cc.isActive ?? true) && (cc.categoryType ?? 'expense') === 'income').length > 0 && (
-                    <optgroup label="Özel Kategoriler">
-                      {customCategories.filter(cc => (cc.isActive ?? true) && (cc.categoryType ?? 'expense') === 'income').map(cc => (
-                        <option key={cc.id} value={`custom:${cc.id}`}>{cc.name} (özel)</option>
-                      ))}
-                    </optgroup>
+
+            {/* Income Form */}
+            <div className="glass rounded-2xl p-6 shadow-xl" data-income-form>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+                {editingIncomeId ? 'Gelir Düzenle' : 'Yeni Gelir Ekle'}
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Miktar (Net) *
+                  </label>
+                  <input
+                    type="text"
+                    value={incomeForm.amount}
+                    onChange={(e) => {
+                      let value = e.target.value;
+                      // Allow only digits, dots, and commas
+                      value = value.replace(/[^\d.,]/g, '');
+                      // Only allow one comma for decimals
+                      const commaIndex = value.indexOf(',');
+                      if (commaIndex !== -1) {
+                        // Only allow 2 digits after comma
+                        const parts = value.split(',');
+                        if (parts[1] && parts[1].length > 2) {
+                          value = parts[0] + ',' + parts[1].substring(0, 2);
+                        }
+                        // Remove extra commas
+                        value = parts[0] + ',' + parts.slice(1).join('');
+                      }
+                      setIncomeForm({ ...incomeForm, amount: value });
+                    }}
+                    onBlur={(e) => {
+                      // Format on blur - add thousand separators
+                      const parsed = parseTurkishNumber(e.target.value);
+                      if (parsed > 0) {
+                        const formatted = formatTurkishNumber(parsed);
+                        setIncomeForm({ ...incomeForm, amount: formatted });
+                      } else if (e.target.value === '') {
+                        setIncomeForm({ ...incomeForm, amount: '' });
+                      }
+                    }}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white/50 dark:bg-gray-800/50 focus:outline-none focus:ring-2 focus:ring-green-500"
+                    placeholder="0,00"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Kaynak *
+                  </label>
+                  <input
+                    type="text"
+                    value={incomeForm.source}
+                    onChange={(e) => setIncomeForm({ ...incomeForm, source: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white/50 dark:bg-gray-800/50 focus:outline-none focus:ring-2 focus:ring-green-500"
+                    placeholder="Örn: Maaş, Freelance, Hediye, Yatırım"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Tarih *
+                  </label>
+                  <input
+                    type="date"
+                    value={incomeForm.date}
+                    onChange={(e) => setIncomeForm({ ...incomeForm, date: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white/50 dark:bg-gray-800/50 focus:outline-none focus:ring-2 focus:ring-green-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Hesap Hedefi *
+                  </label>
+                  <input
+                    type="text"
+                    value={incomeForm.accountTarget}
+                    onChange={(e) => setIncomeForm({ ...incomeForm, accountTarget: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white/50 dark:bg-gray-800/50 focus:outline-none focus:ring-2 focus:ring-green-500"
+                    placeholder="Örn: Ziraat Bankası, Nakit Cüzdan, Kredi Kartı"
+                    required
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Açıklama (Opsiyonel)
+                  </label>
+                  <input
+                    type="text"
+                    value={incomeForm.description}
+                    onChange={(e) => setIncomeForm({ ...incomeForm, description: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white/50 dark:bg-gray-800/50 focus:outline-none focus:ring-2 focus:ring-green-500"
+                    placeholder="Örn: Aylık maaş, Freelance proje ödemesi"
+                  />
+                </div>
+                <div className="md:col-span-2 flex space-x-3">
+                  {editingIncomeId && (
+                    <button
+                      onClick={() => {
+                        setEditingIncomeId(null);
+                        setIncomeForm({
+                          amount: '',
+                          source: '',
+                          date: new Date().toISOString().split('T')[0],
+                          accountTarget: '',
+                          description: ''
+                        });
+                      }}
+                      className="flex-1 px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium transition-colors hover:bg-gray-50 dark:hover:bg-gray-800"
+                    >
+                      İptal
+                    </button>
                   )}
-                </select>
-                {/* Özel kategori seçimi kaldırıldı */}
-                <input
-                  type="number"
-                  value={incomeQuick.amount}
-                  onChange={(e) => setIncomeQuick({ ...incomeQuick, amount: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white/50 dark:bg-gray-800/50 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  placeholder="Tutar"
-                  min="0"
-                  step="0.01"
-                />
-              <button
-                  onClick={() => {
-                    if (!incomeQuick.description || !incomeQuick.amount) return;
-                    const newTransaction: Transaction = {
-                      id: Date.now().toString(),
-                      budgetId: '',
-                      amount: parseFloat(incomeQuick.amount),
-                      description: incomeQuick.description,
-                      category: incomeCustomCategoryId ? BudgetCategory.OTHER : transactionForm.category,
-                      type: TransactionType.INCOME,
-                      date: new Date(),
-                      createdAt: new Date(),
-                      updatedAt: new Date(),
-                      customCategoryId: incomeCustomCategoryId || undefined
-                    };
-                    StorageService.addTransaction(newTransaction);
-                    setIncomeQuick({ description: '', amount: '' });
-                    setIncomeCustomCategoryId('');
-                    loadData();
-                  }}
-                  className="px-4 py-2 gradient-cool text-white rounded-lg hover:scale-105 transition-all"
-                >
-                  Gelir Ekle
-              </button>
-            </div>
-
-
-              {/* Custom category creation moved to Settings */}
-
-              {/* Recurring setup */}
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-                <input
-                  type="text"
-                  value={recurringForm.description}
-                  onChange={(e) => setRecurringForm({ ...recurringForm, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white/50 dark:bg-gray-800/50 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  placeholder="Düzenli gelir açıklaması"
-                />
-                <input
-                  type="number"
-                  value={recurringForm.amount}
-                  onChange={(e) => setRecurringForm({ ...recurringForm, amount: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white/50 dark:bg-gray-800/50 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  placeholder="Tutar"
-                  min="0"
-                  step="0.01"
-                />
-                <select
-                  value={recurringForm.category}
-                  onChange={(e) => setRecurringForm({ ...recurringForm, category: e.target.value as BudgetCategory })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white/50 dark:bg-gray-800/50 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                >
-                  {Object.values(BudgetCategory).map((category) => (
-                    <option key={category} value={category}>{categoryLabel[category]}</option>
-                  ))}
-                </select>
-                <select
-                  value={recurringForm.interval}
-                  onChange={(e) => setRecurringForm({ ...recurringForm, interval: e.target.value as RecurrenceInterval })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white/50 dark:bg-gray-800/50 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                >
-                  <option value={RecurrenceInterval.WEEKLY}>Haftalık</option>
-                  <option value={RecurrenceInterval.MONTHLY}>Aylık</option>
-                  <option value={RecurrenceInterval.YEARLY}>Yıllık</option>
-                </select>
-                <button
-                  onClick={() => {
-                    if (!recurringForm.description || !recurringForm.amount) return;
-                    const tmpl: RecurringTransactionTemplate = {
-                      id: Date.now().toString(),
-                      description: recurringForm.description,
-                      amount: parseFloat(recurringForm.amount),
-                      category: recurringForm.category,
-                      type: TransactionType.INCOME,
-                      nextRunAt: new Date(recurringForm.nextRunAt),
-                      interval: recurringForm.interval,
-                      isActive: true,
-                      createdAt: new Date(),
-                      updatedAt: new Date(),
-                    };
-                    StorageService.addRecurringTemplate(tmpl);
-                    // Immediately generate due recurring transactions and refresh
-                    StorageService.runDueRecurringTemplates();
-                    loadData();
-                    setRecurringForm({ ...recurringForm, description: '', amount: '' });
-                  }}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors"
-                >
-                  Düzenli Gelir Kaydet
-                </button>
+                  <button
+                    onClick={() => {
+                      if (!incomeForm.amount || !incomeForm.accountTarget || !incomeForm.source) {
+                        alert('Lütfen miktar, kaynak ve hesap hedefi alanlarını doldurun');
+                        return;
+                      }
+                      const parsedAmount = parseTurkishNumber(incomeForm.amount);
+                      
+                      if (editingIncomeId) {
+                        // Update existing transaction
+                        const existingTransaction = transactions.find(t => t.id === editingIncomeId);
+                        if (existingTransaction) {
+                          const updatedTransaction: Transaction = {
+                            ...existingTransaction,
+                            amount: parsedAmount,
+                            description: incomeForm.description || incomeForm.source,
+                            date: new Date(incomeForm.date),
+                            accountTarget: incomeForm.accountTarget,
+                            tags: [`source:${incomeForm.source}`],
+                            updatedAt: new Date()
+                          };
+                          StorageService.updateTransaction(updatedTransaction);
+                        }
+                      } else {
+                        // Create new transaction
+                        const newTransaction: Transaction = {
+                          id: Date.now().toString(),
+                          budgetId: '',
+                          amount: parsedAmount,
+                          description: incomeForm.description || incomeForm.source,
+                          category: BudgetCategory.INCOME,
+                          type: TransactionType.INCOME,
+                          date: new Date(incomeForm.date),
+                          accountTarget: incomeForm.accountTarget,
+                          createdAt: new Date(),
+                          updatedAt: new Date(),
+                          tags: [`source:${incomeForm.source}`]
+                        };
+                        StorageService.addTransaction(newTransaction);
+                      }
+                      
+                      loadData();
+                      setEditingIncomeId(null);
+                      setIncomeForm({
+                        amount: '',
+                        source: '',
+                        date: new Date().toISOString().split('T')[0],
+                        accountTarget: '',
+                        description: ''
+                      });
+                    }}
+                    className={`${editingIncomeId ? 'flex-1' : 'w-full'} px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors shadow-lg hover:shadow-xl`}
+                  >
+                    {editingIncomeId ? 'Güncelle' : 'Gelir Ekle'}
+                  </button>
+                </div>
               </div>
             </div>
+
+            {/* Income List */}
             <div className="glass rounded-2xl p-6 shadow-xl">
-              {/* Filter Tabs */}
-              <div className="flex items-center gap-2 mb-4">
-                <button
-                  onClick={() => setIncomeFilter('all')}
-                  className={`px-3 py-1.5 rounded-lg text-sm ${incomeFilter === 'all' ? 'bg-white/20 dark:bg-gray-700/50 text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-white/10 dark:hover:bg-gray-700/30'}`}
-                >Tümü</button>
-                <button
-                  onClick={() => setIncomeFilter('recurring')}
-                  className={`px-3 py-1.5 rounded-lg text-sm ${incomeFilter === 'recurring' ? 'bg-white/20 dark:bg-gray-700/50 text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-white/10 dark:hover:bg-gray-700/30'}`}
-                >Düzenli</button>
-                <button
-                  onClick={() => setIncomeFilter('oneoff')}
-                  className={`px-3 py-1.5 rounded-lg text-sm ${incomeFilter === 'oneoff' ? 'bg-white/20 dark:bg-gray-700/50 text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-white/10 dark:hover:bg-gray-700/30'}`}
-                >Tek Seferlik</button>
-              </div>
-
-              <div className="space-y-3">
-                {(() => {
-                  const baseTx = transactions
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Gelir Listesi</h3>
+              {transactions.filter(t => t.type === TransactionType.INCOME).length > 0 ? (
+                <div className="space-y-2">
+                  {transactions
                     .filter(t => t.type === TransactionType.INCOME)
-                    .filter(t => {
-                      const isRecurring = Array.isArray(t.tags) && t.tags.includes('recurring');
-                      if (incomeFilter === 'recurring') return isRecurring;
-                      if (incomeFilter === 'oneoff') return !isRecurring;
-                      return true;
-                    })
-                    .map(t => ({ kind: 'tx' as const, id: t.id, date: new Date(t.date), amount: t.amount, description: t.description, category: t.category, recurring: Array.isArray(t.tags) && t.tags.includes('recurring') }));
-
-                  const templateItems = incomeFilter !== 'oneoff'
-                    ? StorageService.getRecurringTemplates()
-                        .filter(t => t.type === TransactionType.INCOME && (t.isActive ?? true))
-                        .map(t => ({ kind: 'tmpl' as const, id: `tmpl-${t.id}`, date: new Date(t.nextRunAt), amount: t.amount, description: t.description, category: (t.category || BudgetCategory.OTHER) as BudgetCategory }))
-                    : [];
-
-                  const items = [...baseTx, ...templateItems].sort((a, b) => b.date.getTime() - a.date.getTime());
-
-                  return items.map(item => (
-                    <div key={item.id} className="flex items-center justify-between p-4 bg-white/10 dark:bg-gray-800/20 rounded-lg">
-                      <div>
-                        <p className="font-medium text-gray-900 dark:text-white">{item.description}</p>
-                        <p className="text-sm text-gray-600 dark:text-gray-300">{item.date.toLocaleDateString('tr-TR')}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{categoryLabel[item.category]}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold text-green-600">+₺{item.amount.toLocaleString('tr-TR')}</p>
-                        <div className="mt-1 space-x-1">
-                          {(item.kind === 'tmpl' || (item as { recurring?: boolean }).recurring) && (
-                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-500/10 text-green-600 inline-block">Düzenli</span>
-                          )}
-                          {item.kind === 'tmpl' && (
-                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 inline-block">Şablon</span>
-                          )}
+                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                    .map((transaction) => (
+                      <div
+                        key={transaction.id}
+                        className="flex items-center justify-between p-4 bg-white/10 dark:bg-gray-800/20 rounded-lg hover:bg-white/20 dark:hover:bg-gray-800/30 transition-colors"
+                      >
+                        <div className="flex items-center space-x-4 flex-1">
+                          <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center">
+                            <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                            </svg>
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2">
+                              <p className="font-semibold text-gray-900 dark:text-white">
+                                {transaction.tags && transaction.tags.find(t => t.startsWith('source:'))
+                                  ? transaction.tags.find(t => t.startsWith('source:'))?.replace('source:', '')
+                                  : transaction.description || 'Gelir'}
+                              </p>
+                              {transaction.description && transaction.tags && transaction.tags.find(t => t.startsWith('source:')) && transaction.description !== transaction.tags.find(t => t.startsWith('source:'))?.replace('source:', '') && (
+                                <span className="px-2 py-1 text-xs rounded-full bg-gray-500/10 text-gray-600 dark:text-gray-400">
+                                  {transaction.description}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center space-x-4 mt-1 text-sm text-gray-600 dark:text-gray-400">
+                              <span>{new Date(transaction.date).toLocaleDateString('tr-TR')}</span>
+                              <span className="flex items-center space-x-1">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                                </svg>
+                                <span>{transaction.accountTarget || 'Belirtilmemiş'}</span>
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-4">
+                          <div className="text-right">
+                            <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                              +₺{formatTurkishNumber(transaction.amount)}
+                            </p>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => {
+                                // Populate form with transaction data
+                                const sourceTag = transaction.tags?.find(t => t.startsWith('source:'));
+                                const source = sourceTag ? sourceTag.replace('source:', '') : '';
+                                
+                                setEditingIncomeId(transaction.id);
+                                setIncomeForm({
+                                  amount: transaction.amount.toString(),
+                                  source: source,
+                                  date: new Date(transaction.date).toISOString().split('T')[0],
+                                  accountTarget: transaction.accountTarget || '',
+                                  description: transaction.description || ''
+                                });
+                                // Scroll to form
+                                document.querySelector('[data-income-form]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                              }}
+                              className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 dark:hover:bg-blue-500/20 rounded-lg transition-colors"
+                              title="Düzenle"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (confirm('Bu geliri silmek istediğinizden emin misiniz?')) {
+                                  StorageService.deleteTransaction(transaction.id);
+                                  loadData();
+                                }
+                              }}
+                              className="p-2 text-red-600 dark:text-red-400 hover:bg-red-500/10 dark:hover:bg-red-500/20 rounded-lg transition-colors"
+                              title="Sil"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ));
-                })()}
-              </div>
+                    ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="w-24 h-24 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-12 h-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                    </svg>
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Henüz gelir yok</h3>
+                  <p className="text-gray-600 dark:text-gray-300">İlk gelirinizi ekleyerek başlayın</p>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -770,203 +874,7 @@ export default function BudgetTracker() {
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Giderler</h2>
             </div>
-            <div className="glass rounded-2xl p-6 shadow-xl space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <input
-                  type="text"
-                  value={expenseQuick.description}
-                  onChange={(e) => setExpenseQuick({ ...expenseQuick, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white/50 dark:bg-gray-800/50 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  placeholder="Açıklama"
-                />
-                <select
-                  value={expenseCustomCategoryId ? `custom:${expenseCustomCategoryId}` : expenseCategorySelect}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (val.startsWith('custom:')) {
-                      const id = val.replace('custom:', '');
-                      setExpenseCustomCategoryId(id);
-                      setExpenseCategorySelect(BudgetCategory.OTHER);
-                      setTransactionForm({ ...transactionForm, category: BudgetCategory.OTHER });
-                    } else {
-                      setExpenseCustomCategoryId('');
-                      setExpenseCategorySelect(val);
-                      setTransactionForm({ ...transactionForm, category: val as BudgetCategory });
-                    }
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white/50 dark:bg-gray-800/50 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                >
-                  {Object.values(BudgetCategory).filter(c => c !== BudgetCategory.INCOME).map((category) => (
-                    <option key={category} value={category}>{categoryLabel[category]}</option>
-                  ))}
-                  {customCategories.filter(cc => (cc.isActive ?? true) && (cc.categoryType ?? 'expense') === 'expense').length > 0 && (
-                    <optgroup label="Özel Kategoriler">
-                      {customCategories.filter(cc => (cc.isActive ?? true) && (cc.categoryType ?? 'expense') === 'expense').map(cc => (
-                        <option key={cc.id} value={`custom:${cc.id}`}>{cc.name} (özel)</option>
-                      ))}
-                    </optgroup>
-                  )}
-                </select>
-                {/* Özel kategori seçimi kaldırıldı */}
-                <input
-                  type="number"
-                  value={expenseQuick.amount}
-                  onChange={(e) => setExpenseQuick({ ...expenseQuick, amount: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white/50 dark:bg-gray-800/50 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  placeholder="Tutar"
-                  min="0"
-                  step="0.01"
-                />
-                          <button
-                  onClick={() => {
-                    if (!expenseQuick.description || !expenseQuick.amount) return;
-                    const newTransaction: Transaction = {
-                      id: Date.now().toString(),
-                      budgetId: '',
-                      amount: parseFloat(expenseQuick.amount),
-                      description: expenseQuick.description,
-                      category: expenseCustomCategoryId ? BudgetCategory.OTHER : transactionForm.category,
-                      type: TransactionType.EXPENSE,
-                      date: new Date(),
-                      createdAt: new Date(),
-                      updatedAt: new Date(),
-                      customCategoryId: expenseCustomCategoryId || undefined
-                    };
-                    StorageService.addTransaction(newTransaction);
-                    setExpenseQuick({ description: '', amount: '' });
-                    setExpenseCustomCategoryId('');
-                    loadData();
-                  }}
-                  className="px-4 py-2 gradient-cool text-white rounded-lg hover:scale-105 transition-all"
-                >
-                  Gider Ekle
-                          </button>
-              </div>
-
-
-              {/* Recurring expense setup */}
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-                <input
-                  type="text"
-                  value={recurringForm.description}
-                  onChange={(e) => setRecurringForm({ ...recurringForm, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white/50 dark:bg-gray-800/50 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  placeholder="Düzenli gider açıklaması"
-                />
-                <input
-                  type="number"
-                  value={recurringForm.amount}
-                  onChange={(e) => setRecurringForm({ ...recurringForm, amount: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white/50 dark:bg-gray-800/50 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  placeholder="Tutar"
-                  min="0"
-                  step="0.01"
-                />
-                <select
-                  value={recurringForm.category}
-                  onChange={(e) => setRecurringForm({ ...recurringForm, category: e.target.value as BudgetCategory })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white/50 dark:bg-gray-800/50 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                >
-                  {Object.values(BudgetCategory).filter(c => c !== BudgetCategory.INCOME).map((category) => (
-                    <option key={category} value={category}>{categoryLabel[category]}</option>
-                  ))}
-                </select>
-                <select
-                  value={recurringForm.interval}
-                  onChange={(e) => setRecurringForm({ ...recurringForm, interval: e.target.value as RecurrenceInterval })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white/50 dark:bg-gray-800/50 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                >
-                  <option value={RecurrenceInterval.WEEKLY}>Haftalık</option>
-                  <option value={RecurrenceInterval.MONTHLY}>Aylık</option>
-                  <option value={RecurrenceInterval.YEARLY}>Yıllık</option>
-                </select>
-                <button
-                  onClick={() => {
-                    if (!recurringForm.description || !recurringForm.amount) return;
-                    const tmpl: RecurringTransactionTemplate = {
-                      id: Date.now().toString(),
-                      description: recurringForm.description,
-                      amount: parseFloat(recurringForm.amount),
-                      category: recurringForm.category,
-                      type: TransactionType.EXPENSE,
-                      nextRunAt: new Date(),
-                      interval: recurringForm.interval,
-                      isActive: true,
-                      createdAt: new Date(),
-                      updatedAt: new Date(),
-                    };
-                    StorageService.addRecurringTemplate(tmpl);
-                    // Immediately generate due recurring transactions and refresh
-                    StorageService.runDueRecurringTemplates();
-                    loadData();
-                    setRecurringForm({ ...recurringForm, description: '', amount: '' });
-                  }}
-                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition-colors"
-                >
-                  Düzenli Gider Kaydet
-                </button>
-              </div>
-            </div>
-            <div className="glass rounded-2xl p-6 shadow-xl">
-              {/* Filter Tabs */}
-              <div className="flex items-center gap-2 mb-4">
-                <button
-                  onClick={() => setExpenseFilter('all')}
-                  className={`px-3 py-1.5 rounded-lg text-sm ${expenseFilter === 'all' ? 'bg-white/20 dark:bg-gray-700/50 text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-white/10 dark:hover:bg-gray-700/30'}`}
-                >Tümü</button>
-                <button
-                  onClick={() => setExpenseFilter('recurring')}
-                  className={`px-3 py-1.5 rounded-lg text-sm ${expenseFilter === 'recurring' ? 'bg-white/20 dark:bg-gray-700/50 text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-white/10 dark:hover:bg-gray-700/30'}`}
-                >Düzenli</button>
-                <button
-                  onClick={() => setExpenseFilter('oneoff')}
-                  className={`px-3 py-1.5 rounded-lg text-sm ${expenseFilter === 'oneoff' ? 'bg-white/20 dark:bg-gray-700/50 text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-white/10 dark:hover:bg-gray-700/30'}`}
-                >Tek Seferlik</button>
-              </div>
-
-              <div className="space-y-3">
-                {(() => {
-                  const baseTx = transactions
-                    .filter(t => t.type === TransactionType.EXPENSE)
-                    .filter(t => {
-                      const isRecurring = Array.isArray(t.tags) && t.tags.includes('recurring');
-                      if (expenseFilter === 'recurring') return isRecurring;
-                      if (expenseFilter === 'oneoff') return !isRecurring;
-                      return true;
-                    })
-                    .map(t => ({ kind: 'tx' as const, id: t.id, date: new Date(t.date), amount: t.amount, description: t.description, category: t.category, recurring: Array.isArray(t.tags) && t.tags.includes('recurring') }));
-
-                  const templateItems = expenseFilter !== 'oneoff'
-                    ? StorageService.getRecurringTemplates()
-                        .filter(t => t.type === TransactionType.EXPENSE && (t.isActive ?? true))
-                        .map(t => ({ kind: 'tmpl' as const, id: `tmpl-${t.id}`, date: new Date(t.nextRunAt), amount: t.amount, description: t.description, category: (t.category || BudgetCategory.OTHER) as BudgetCategory }))
-                    : [];
-
-                  const items = [...baseTx, ...templateItems].sort((a, b) => b.date.getTime() - a.date.getTime());
-
-                  return items.map(item => (
-                    <div key={item.id} className="flex items-center justify-between p-4 bg-white/10 dark:bg-gray-800/20 rounded-lg">
-                      <div>
-                        <p className="font-medium text-gray-900 dark:text-white">{item.description}</p>
-                        <p className="text-sm text-gray-600 dark:text-gray-300">{item.date.toLocaleDateString('tr-TR')}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold text-red-600">-₺{item.amount.toLocaleString('tr-TR')}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{categoryLabel[item.category]}</p>
-                        <div className="mt-1 space-x-1">
-                          {(item.kind === 'tmpl' || (item as { recurring?: boolean }).recurring) && (
-                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-600 inline-block">Düzenli</span>
-                          )}
-                          {item.kind === 'tmpl' && (
-                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/10 text-red-600 inline-block">Şablon</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ));
-                })()}
-              </div>
-            </div>
+            {/* Content will be redesigned here */}
           </div>
         )}
 

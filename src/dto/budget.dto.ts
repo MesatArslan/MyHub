@@ -30,6 +30,15 @@ export interface UpdateBudgetRequestDto {
   targetAmount?: number;
 }
 
+export interface CreateIncomeRequestDto {
+  amount: number;
+  category: BudgetCategory;
+  date: Date;
+  accountTarget: string; // wallet or bank account where money goes
+  description?: string;
+  tags?: string[];
+}
+
 export interface CreateTransactionRequestDto {
   budgetId: string;
   amount: number;
@@ -39,6 +48,7 @@ export interface CreateTransactionRequestDto {
   date: Date;
   tags?: string[];
   receipt?: string;
+  accountTarget?: string; // wallet or bank account where money goes
 }
 
 export interface UpdateTransactionRequestDto {
@@ -51,6 +61,7 @@ export interface UpdateTransactionRequestDto {
   date?: Date;
   tags?: string[];
   receipt?: string;
+  accountTarget?: string;
 }
 
 export interface SearchBudgetRequestDto {
@@ -118,6 +129,7 @@ export interface TransactionResponseDto {
   date: Date;
   tags?: string[];
   receipt?: string;
+  accountTarget?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -195,6 +207,7 @@ export const toTransactionResponseDto = (transaction: Transaction): TransactionR
   date: transaction.date,
   tags: transaction.tags,
   receipt: transaction.receipt,
+  accountTarget: transaction.accountTarget,
   createdAt: transaction.createdAt,
   updatedAt: transaction.updatedAt,
 });
@@ -209,6 +222,7 @@ export const toTransactionEntry = (dto: CreateTransactionRequestDto, id?: string
   date: dto.date,
   tags: dto.tags || [],
   receipt: dto.receipt,
+  accountTarget: dto.accountTarget,
 });
 
 // Helper functions
