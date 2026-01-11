@@ -5,6 +5,7 @@ import { BudgetService } from '@/services/budget.service';
 import { StorageService } from '@/services/storage.service';
 import { CustomCategoryService } from '@/services/custom-category.service';
 import { Budget, Transaction, BudgetCategory, TransactionType, Currency, BudgetType, BudgetPeriod, RecurrenceInterval } from '@/types';
+import { useNavbarActions } from '@/app/components/NavbarActions';
 
 type Tab = 'dashboard' | 'budgets' | 'analytics' | 'incomes' | 'expenses' | 'debts' | 'investments';
 
@@ -46,6 +47,7 @@ export default function BudgetTracker() {
   const [customCategories, setCustomCategories] = useState<ReturnType<typeof CustomCategoryService.getCustomCategories>>([]);
   const [analyticsFrom, setAnalyticsFrom] = useState<string>('');
   const [analyticsTo, setAnalyticsTo] = useState<string>('');
+  const [incomePeriodDay, setIncomePeriodDay] = useState<number>(15);
   
   // Income form state
   const [showIncomeForm, setShowIncomeForm] = useState(false);
@@ -108,10 +110,76 @@ export default function BudgetTracker() {
     return isNaN(parsed) ? 0 : parsed;
   };
 
+  // Calculate income date range based on period day
+  // If today is Jan 17 and period day is 15, show from Jan 15 to Feb 15 (current period forward)
+  const getIncomeDateRange = () => {
+    const today = new Date();
+    const currentDay = today.getDate();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+
+    // Calculate the start date (current month's period day)
+    let startMonth = currentMonth;
+    let startYear = currentYear;
+    
+    // If current day is before the period day, start date is previous month's period day
+    if (currentDay < incomePeriodDay) {
+      startMonth -= 1;
+      if (startMonth < 0) {
+        startMonth += 12;
+        startYear -= 1;
+      }
+    }
+
+    const startDate = new Date(startYear, startMonth, incomePeriodDay);
+    startDate.setHours(0, 0, 0, 0); // Start of the day
+
+    // Calculate the end date (next month's period day)
+    let endMonth = startMonth + 1;
+    let endYear = startYear;
+    
+    if (endMonth > 11) {
+      endMonth = 0;
+      endYear += 1;
+    }
+
+    const endDate = new Date(endYear, endMonth, incomePeriodDay);
+    endDate.setHours(23, 59, 59, 999); // End of the day
+
+    return { startDate, endDate };
+  };
+
+  // Navbar actions
+  const { setActions } = useNavbarActions();
+
   // Load data on component mount
   useEffect(() => {
     loadData();
+    // Load income period day from localStorage
+    const savedDay = localStorage.getItem('incomePeriodDay');
+    if (savedDay) {
+      setIncomePeriodDay(parseInt(savedDay, 10));
+    }
   }, []);
+
+  // Set navbar actions
+  useEffect(() => {
+    setActions(
+      <button
+        onClick={() => setShowSettings(true)}
+        className="flex items-center space-x-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors"
+        title="Ayarlar"
+      >
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+        <span className="font-medium">Ayarlar</span>
+      </button>
+    );
+
+    return () => setActions(null);
+  }, [setActions]);
 
   const loadData = () => {
     // Generate due recurring transactions before reading
@@ -797,12 +865,20 @@ export default function BudgetTracker() {
             {/* Income List */}
             <div className="glass rounded-2xl p-6 shadow-xl">
               <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Gelir Listesi</h3>
-              {transactions.filter(t => t.type === TransactionType.INCOME).length > 0 ? (
-                <div className="space-y-2">
-                  {transactions
-                    .filter(t => t.type === TransactionType.INCOME)
-                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                    .map((transaction) => (
+              {(() => {
+                const { startDate, endDate } = getIncomeDateRange();
+                const filteredIncomes = transactions
+                  .filter(t => {
+                    if (t.type !== TransactionType.INCOME) return false;
+                    const transactionDate = new Date(t.date);
+                    return transactionDate >= startDate && transactionDate <= endDate;
+                  });
+                
+                return filteredIncomes.length > 0 ? (
+                  <div className="space-y-2">
+                    {filteredIncomes
+                      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                      .map((transaction) => (
                       <div
                         key={transaction.id}
                         className="flex items-center justify-between p-4 bg-white/10 dark:bg-gray-800/20 rounded-lg hover:bg-white/20 dark:hover:bg-gray-800/30 transition-colors"
@@ -887,18 +963,19 @@ export default function BudgetTracker() {
                         </div>
                       </div>
                     ))}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <div className="w-24 h-24 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-12 h-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                    </svg>
                   </div>
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Henüz gelir yok</h3>
-                  <p className="text-gray-600 dark:text-gray-300">İlk gelirinizi ekleyerek başlayın</p>
-                </div>
-              )}
+                ) : (
+                  <div className="text-center py-12">
+                    <div className="w-24 h-24 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <svg className="w-12 h-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                      </svg>
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Henüz gelir yok</h3>
+                    <p className="text-gray-600 dark:text-gray-300">İlk gelirinizi ekleyerek başlayın</p>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         )}
@@ -1439,124 +1516,40 @@ export default function BudgetTracker() {
                 </button>
               </div>
 
-              <div className="flex space-x-2 mb-4">
-                {([
-                  { id: 'income', label: 'Gelirler' },
-                  { id: 'expense', label: 'Giderler' },
-                  { id: 'color', label: 'Renk' },
-                ] as { id: 'income' | 'expense' | 'color'; label: string }[]).map(t => (
-                  <button
-                    key={t.id}
-                    onClick={() => { setSettingsTab(t.id); if (t.id !== 'color') setCustomCategoryType(t.id); }}
-                    className={`px-4 py-2 rounded-lg ${settingsTab === t.id ? 'bg-white/20 dark:bg-gray-700/50 text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-white/10 dark:hover:bg-gray-700/30'}`}
-                  >
-                    {t.label}
-                  </button>
-                ))}
+              {/* Gelirler Settings */}
+              <div className="mb-6 p-4 bg-white/10 dark:bg-gray-800/20 rounded-lg">
+                <h4 className="font-semibold mb-3 text-gray-900 dark:text-white">Gelir Dönem Ayarları</h4>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Gelir Dönem Günü (Her ayın kaçıncı günü)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="31"
+                      value={incomePeriodDay}
+                      onChange={(e) => {
+                        const day = Math.max(1, Math.min(31, parseInt(e.target.value) || 15));
+                        setIncomePeriodDay(day);
+                        localStorage.setItem('incomePeriodDay', day.toString());
+                      }}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white/50 dark:bg-gray-800/50 focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                      Gelirler tablosu, mevcut dönem gelirlerini gösterecektir (seçilen günden başlayarak bir sonraki dönem gününe kadar).
+                      {(() => {
+                        const { startDate, endDate } = getIncomeDateRange();
+                        return (
+                          <span className="block mt-1">
+                            Şu anda gösterilen dönem: {startDate.toLocaleDateString('tr-TR')} - {endDate.toLocaleDateString('tr-TR')}
+                          </span>
+                        );
+                      })()}
+                    </p>
+                  </div>
+                </div>
               </div>
-
-              {settingsTab !== 'color' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <h4 className="font-semibold mb-2 text-gray-900 dark:text-white">Mevcut Kategoriler</h4>
-                    <div className="space-y-2 max-h-64 overflow-auto pr-1">
-                      {/* Built-in categories */}
-                      {Object.values(BudgetCategory)
-                        .filter(bc => (settingsTab === 'income' ? bc === BudgetCategory.INCOME : bc !== BudgetCategory.INCOME))
-                        .map(bc => (
-                          <div key={`builtin-${bc}`} className="flex items-center justify-between p-3 bg-white/10 dark:bg-gray-800/20 rounded-lg">
-                            <div className="flex items-center space-x-3">
-                              <span className="w-3 h-3 rounded-full bg-gray-400"></span>
-                              <span className="text-gray-900 dark:text-white">{categoryLabel[bc]}</span>
-                            </div>
-                            <span className="text-xs px-2 py-1 rounded-full bg-blue-500/20 text-blue-600">Sistem</span>
-                          </div>
-                        ))}
-
-                      {/* Custom categories */}
-                      {customCategories
-                        .filter(cc => (cc.categoryType ?? 'expense') === settingsTab)
-                        .map(cc => (
-                          <div key={cc.id} className="flex items-center justify-between p-3 bg-white/10 dark:bg-gray-800/20 rounded-lg">
-                            <div className="flex items-center space-x-3">
-                              <span className="w-3 h-3 rounded-full" style={{ backgroundColor: cc.color }}></span>
-                              <span className="text-gray-900 dark:text-white">{cc.name}</span>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <span className={`text-xs px-2 py-1 rounded-full ${cc.isActive ?? true ? 'bg-green-500/20 text-green-600' : 'bg-gray-500/20 text-gray-300'}`}>{(cc.isActive ?? true) ? 'Aktif' : 'Pasif'}</span>
-                              <button
-                                onClick={() => { CustomCategoryService.updateCustomCategory(cc.id, { isActive: !(cc.isActive ?? true) }); setCustomCategories(CustomCategoryService.getCustomCategories()); }}
-                                className="px-2 py-1 text-sm rounded-md border border-gray-300 dark:border-gray-600 hover:bg-white/10"
-                              >
-                                {(cc.isActive ?? true) ? 'Deaktif Et' : 'Aktif Et'}
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      {customCategories.filter(cc => (cc.categoryType ?? 'expense') === settingsTab).length === 0 && (
-                        <p className="text-sm text-gray-600 dark:text-gray-300">Kategori yok</p>
-                      )}
-                    </div>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold mb-2 text-gray-900 dark:text-white">Yeni Kategori</h4>
-                    <div className="space-y-3">
-                      <input
-                        type="text"
-                        value={customCategoryName}
-                        onChange={(e) => setCustomCategoryName(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white/50 dark:bg-gray-800/50 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                        placeholder="Kategori adı"
-                      />
-                      <div className="flex items-center space-x-3">
-                        <input
-                          type="color"
-                          value={customCategoryColor}
-                          onChange={(e) => setCustomCategoryColor(e.target.value)}
-                          className="h-10 w-16 border border-gray-300 dark:border-gray-600 rounded"
-                        />
-                        <select
-                          value={customCategoryType}
-                          onChange={(e) => setCustomCategoryType(e.target.value as 'income' | 'expense')}
-                          className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white/50 dark:bg-gray-800/50"
-                        >
-                          <option value="income">Gelir</option>
-                          <option value="expense">Gider</option>
-                        </select>
-                      </div>
-                      <button
-                        onClick={() => {
-                          if (!customCategoryName.trim()) return;
-                          CustomCategoryService.createCustomCategory(customCategoryName, customCategoryColor, undefined, undefined, customCategoryType);
-                          setCustomCategoryName('');
-                          setCustomCategories(CustomCategoryService.getCustomCategories());
-                        }}
-                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors"
-                      >
-                        Kategori Ekle
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {settingsTab === 'color' && (
-                <div>
-                  <h4 className="font-semibold mb-3 text-gray-900 dark:text-white">Renk Seçimi</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {CustomCategoryService.getPredefinedColors().map(color => (
-                      <button
-                        key={color}
-                        onClick={() => setCustomCategoryColor(color)}
-                        className={`w-8 h-8 rounded-full border-2 ${customCategoryColor === color ? 'border-white ring-2 ring-cyan-500' : 'border-gray-300/40'}`}
-                        style={{ backgroundColor: color }}
-                        title={color}
-                      />
-                    ))}
-                  </div>
-                  <p className="mt-3 text-sm text-gray-600 dark:text-gray-300">Seçili renk: <span className="font-mono">{customCategoryColor}</span></p>
-                </div>
-              )}
             </div>
           </div>
         )}
