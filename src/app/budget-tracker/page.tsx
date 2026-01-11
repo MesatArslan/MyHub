@@ -48,6 +48,8 @@ export default function BudgetTracker() {
   const [analyticsFrom, setAnalyticsFrom] = useState<string>('');
   const [analyticsTo, setAnalyticsTo] = useState<string>('');
   const [incomePeriodDay, setIncomePeriodDay] = useState<number>(15);
+  const [selectedFilterMonth, setSelectedFilterMonth] = useState<{ year: number; month: number } | null>(null);
+  const [showMonthFilter, setShowMonthFilter] = useState(false);
   
   // Income form state
   const [showIncomeForm, setShowIncomeForm] = useState(false);
@@ -110,33 +112,58 @@ export default function BudgetTracker() {
     return isNaN(parsed) ? 0 : parsed;
   };
 
+  // Get list of months for filter (current month + past 11 months)
+  const getMonthOptions = () => {
+    const today = new Date();
+    const months = [];
+    
+    for (let i = 0; i < 12; i++) {
+      const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      months.push({
+        year: date.getFullYear(),
+        month: date.getMonth(),
+        label: date.toLocaleDateString('tr-TR', { year: 'numeric', month: 'long' })
+      });
+    }
+    
+    return months;
+  };
+
   // Calculate income date range based on period day
   // If today is Jan 17 and period day is 15, show from Jan 15 to Feb 15 (current period forward)
-  const getIncomeDateRange = () => {
+  // If filterMonth is provided, use that month instead of current month
+  const getIncomeDateRange = (filterMonth?: { year: number; month: number } | null) => {
     const today = new Date();
-    const currentDay = today.getDate();
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
-
-    // Calculate the start date (current month's period day)
-    let startMonth = currentMonth;
-    let startYear = currentYear;
+    let targetMonth: number;
+    let targetYear: number;
     
-    // If current day is before the period day, start date is previous month's period day
-    if (currentDay < incomePeriodDay) {
-      startMonth -= 1;
-      if (startMonth < 0) {
-        startMonth += 12;
-        startYear -= 1;
+    if (filterMonth) {
+      // Use the selected filter month
+      targetMonth = filterMonth.month;
+      targetYear = filterMonth.year;
+    } else {
+      // Use current month
+      const currentDay = today.getDate();
+      targetMonth = today.getMonth();
+      targetYear = today.getFullYear();
+      
+      // If current day is before the period day, use previous month
+      if (currentDay < incomePeriodDay) {
+        targetMonth -= 1;
+        if (targetMonth < 0) {
+          targetMonth += 12;
+          targetYear -= 1;
+        }
       }
     }
 
-    const startDate = new Date(startYear, startMonth, incomePeriodDay);
+    // Calculate the start date (target month's period day)
+    const startDate = new Date(targetYear, targetMonth, incomePeriodDay);
     startDate.setHours(0, 0, 0, 0); // Start of the day
 
     // Calculate the end date (next month's period day)
-    let endMonth = startMonth + 1;
-    let endYear = startYear;
+    let endMonth = targetMonth + 1;
+    let endYear = targetYear;
     
     if (endMonth > 11) {
       endMonth = 0;
@@ -161,6 +188,21 @@ export default function BudgetTracker() {
       setIncomePeriodDay(parseInt(savedDay, 10));
     }
   }, []);
+
+  // Close month filter dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (showMonthFilter && !target.closest('.month-filter-container')) {
+        setShowMonthFilter(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showMonthFilter]);
 
   // Set navbar actions
   useEffect(() => {
@@ -864,9 +906,57 @@ export default function BudgetTracker() {
 
             {/* Income List */}
             <div className="glass rounded-2xl p-6 shadow-xl">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Gelir Listesi</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">Gelir Listesi</h3>
+                <div className="relative month-filter-container">
+                  <button
+                    onClick={() => setShowMonthFilter(!showMonthFilter)}
+                    className="flex items-center space-x-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors"
+                    title="Filtrele"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                    </svg>
+                    <span className="font-medium">Filtre</span>
+                  </button>
+                  
+                  {showMonthFilter && (
+                    <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-10 max-h-80 overflow-y-auto">
+                      <div className="p-2">
+                        {getMonthOptions().map((monthOption, index) => {
+                          const isSelected = selectedFilterMonth 
+                            ? selectedFilterMonth.year === monthOption.year && selectedFilterMonth.month === monthOption.month
+                            : index === 0; // First option (current month) is selected by default
+                          
+                          return (
+                            <button
+                              key={`${monthOption.year}-${monthOption.month}`}
+                              onClick={() => {
+                                if (index === 0) {
+                                  // Current month - reset filter
+                                  setSelectedFilterMonth(null);
+                                } else {
+                                  setSelectedFilterMonth({ year: monthOption.year, month: monthOption.month });
+                                }
+                                setShowMonthFilter(false);
+                              }}
+                              className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
+                                isSelected
+                                  ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                                  : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+                              }`}
+                            >
+                              {monthOption.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
               {(() => {
-                const { startDate, endDate } = getIncomeDateRange();
+                const { startDate, endDate } = getIncomeDateRange(selectedFilterMonth);
                 const filteredIncomes = transactions
                   .filter(t => {
                     if (t.type !== TransactionType.INCOME) return false;
