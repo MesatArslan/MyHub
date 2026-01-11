@@ -57,11 +57,63 @@ export default function RoutineTracker() {
     setSavedItems(reorderedItems);
   };
 
+  // Helper function to convert time string (HH:MM) to minutes
+  const timeToMinutes = (time: string): number => {
+    const [hours, minutes] = time.split(':').map(Number);
+    return hours * 60 + minutes;
+  };
+
+  // Helper function to convert minutes to time string (HH:MM)
+  const minutesToTime = (minutes: number): string => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+  };
+
   const handleAddRoutine = () => {
+    // Find the latest end time from saved items and unsaved items
+    let latestEndTime = '09:00'; // Default start time
+    
+    // Check saved items
+    if (savedItems.length > 0) {
+      const sortedSavedItems = [...savedItems].sort((a, b) => {
+        return timeToMinutes(b.endTime) - timeToMinutes(a.endTime);
+      });
+      latestEndTime = sortedSavedItems[0].endTime;
+    }
+    
+    // Check unsaved items and compare with saved items
+    if (unsavedItems.length > 0) {
+      const sortedUnsavedItems = [...unsavedItems].sort((a, b) => {
+        return timeToMinutes(b.endTime) - timeToMinutes(a.endTime);
+      });
+      const latestUnsavedEndTime = sortedUnsavedItems[0].endTime;
+      
+      // Use the later end time
+      if (timeToMinutes(latestUnsavedEndTime) > timeToMinutes(latestEndTime)) {
+        latestEndTime = latestUnsavedEndTime;
+      }
+    }
+    
+    // Set start time to the latest end time
+    const startTime = latestEndTime;
+    
+    // Set end time to 1 hour after start time
+    const startMinutes = timeToMinutes(startTime);
+    let endMinutes = startMinutes + 60; // Add 1 hour (60 minutes)
+    
+    // Handle midnight rollover (max 23:59)
+    const maxMinutes = 23 * 60 + 59; // 23:59
+    if (endMinutes > maxMinutes) {
+      endMinutes = maxMinutes;
+    }
+    
+    const endTime = minutesToTime(endMinutes);
+
     // Create DTO for new item
     const dto: CreateRoutineScheduleItemDto = {
-      startTime: '09:00',
-      endTime: '10:00',
+      startTime: startTime,
+      endTime: endTime,
       whatToDo: '',
       whereToDo: undefined, // Optional field
       day: selectedDay,

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 interface CustomTimePickerProps {
   value: string; // HH:MM format
@@ -13,14 +14,65 @@ export default function CustomTimePicker({ value, onChange, className = '' }: Cu
   const [hours, minutes] = value.split(':').map(Number) || [9, 0];
   const [selectedHour, setSelectedHour] = useState(hours || 9);
   const [selectedMinute, setSelectedMinute] = useState(minutes || 0);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
   const pickerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLDivElement>(null);
   const hoursRef = useRef<HTMLDivElement>(null);
   const minutesRef = useRef<HTMLDivElement>(null);
+
+  // Update dropdown position on scroll and resize
+  useEffect(() => {
+    const updatePosition = () => {
+      if (isOpen && inputRef.current) {
+        const rect = inputRef.current.getBoundingClientRect();
+        const dropdownWidth = 220;
+        const dropdownHeight = 280;
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        
+        let top = rect.bottom ;
+        let left = rect.left;
+        
+        if (top + dropdownHeight > viewportHeight) {
+          top = rect.top - dropdownHeight - 64;
+          if (top < 0) {
+            top = 8;
+          }
+        }
+        
+        if (left + dropdownWidth > viewportWidth) {
+          left = viewportWidth - dropdownWidth - 8;
+        }
+        
+        if (left < 0) {
+          left = 8;
+        }
+        
+        setDropdownPosition({ top, left });
+      }
+    };
+
+    if (isOpen) {
+      window.addEventListener('scroll', updatePosition, true);
+      window.addEventListener('resize', updatePosition);
+      updatePosition(); // Initial position update
+      
+      return () => {
+        window.removeEventListener('scroll', updatePosition, true);
+        window.removeEventListener('resize', updatePosition);
+      };
+    }
+  }, [isOpen]);
 
   // Close picker when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (pickerRef.current && !pickerRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (
+        pickerRef.current && 
+        !pickerRef.current.contains(target) &&
+        !(target as Element).closest('[data-time-picker-dropdown]')
+      ) {
         setIsOpen(false);
       }
     };
@@ -56,6 +108,43 @@ export default function CustomTimePicker({ value, onChange, className = '' }: Cu
     const newState = !isOpen;
     setIsOpen(newState);
     
+    // Calculate dropdown position when opening
+    if (newState && inputRef.current) {
+      const rect = inputRef.current.getBoundingClientRect();
+      const dropdownWidth = 220;
+      const dropdownHeight = 280; // Approximate height
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      
+      // Calculate position
+      let top = rect.bottom + 8;
+      let left = rect.left;
+      
+      // Adjust if dropdown would go off bottom of screen
+      if (top + dropdownHeight > viewportHeight) {
+        top = rect.top - dropdownHeight - 8; // Show above instead
+        // If still off screen, position at top of viewport
+        if (top < 0) {
+          top = 8;
+        }
+      }
+      
+      // Adjust if dropdown would go off right edge of screen
+      if (left + dropdownWidth > viewportWidth) {
+        left = viewportWidth - dropdownWidth - 8;
+      }
+      
+      // Adjust if dropdown would go off left edge of screen
+      if (left < 0) {
+        left = 8;
+      }
+      
+      setDropdownPosition({
+        top,
+        left,
+      });
+    }
+    
     // Auto-scroll to selected values when opening
     if (newState) {
       setTimeout(() => {
@@ -81,9 +170,10 @@ export default function CustomTimePicker({ value, onChange, className = '' }: Cu
   const minutesList = Array.from({ length: 60 }, (_, i) => i);
 
   return (
-    <div className={`relative ${className}`} ref={pickerRef}>
+    <div className={`relative z-10 ${className}`} ref={pickerRef}>
       {/* Input field */}
       <div
+        ref={inputRef}
         onClick={handleInputClick}
         className="px-3 py-2 text-sm border border-pink-200 dark:border-pink-700/50 rounded-lg focus-within:ring-2 focus-within:ring-pink-500 focus-within:border-pink-500 bg-white dark:bg-pink-900/40 text-gray-900 dark:text-white cursor-pointer hover:border-pink-300 dark:hover:border-pink-600 transition-colors flex items-center gap-2 min-w-[100px]"
       >
@@ -97,31 +187,38 @@ export default function CustomTimePicker({ value, onChange, className = '' }: Cu
       </div>
 
       {/* Dropdown picker */}
-      {isOpen && (
-        <div className="absolute z-50 mt-2 bg-white dark:bg-pink-900/95 backdrop-blur-sm rounded-xl shadow-2xl border border-pink-200 dark:border-pink-700/50 overflow-hidden min-w-[280px]">
+      {isOpen && typeof window !== 'undefined' && createPortal(
+        <div 
+          data-time-picker-dropdown
+          className="fixed z-40 bg-white dark:bg-pink-900/95 backdrop-blur-sm rounded-lg shadow-2xl border border-pink-200 dark:border-pink-700/50 overflow-hidden w-[220px] max-h-[90vh]"
+          style={{
+            top: `${dropdownPosition.top}px`,
+            left: `${dropdownPosition.left}px`,
+          }}
+        >
           {/* Header */}
-          <div className="px-4 py-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white">
+          <div className="px-3 py-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white">
             <div className="text-center">
-              <div className="text-2xl font-bold">{formatTime(selectedHour, selectedMinute)}</div>
-              <div className="text-xs opacity-90 mt-1">Saat ve Dakika Seçin</div>
+              <div className="text-xl font-bold">{formatTime(selectedHour, selectedMinute)}</div>
+              <div className="text-[10px] opacity-90 mt-0.5">Saat ve Dakika Seçin</div>
             </div>
           </div>
 
           {/* Time selectors */}
-          <div className="flex p-4 gap-4 max-h-[300px] overflow-hidden">
+          <div className="flex p-2 gap-2 overflow-hidden" style={{ maxHeight: 'calc(90vh - 100px)' }}>
             {/* Hours */}
             <div className="flex-1">
-              <div className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-2 text-center">Saat</div>
-              <div ref={hoursRef} className="overflow-y-auto max-h-[240px] pr-2 custom-scrollbar">
+              <div className="text-[10px] font-semibold text-gray-600 dark:text-gray-300 mb-1 text-center">Saat</div>
+              <div ref={hoursRef} className="overflow-y-auto max-h-[200px] pr-1 custom-scrollbar">
                 {hoursList.map((hour) => (
                   <button
                     key={hour}
                     onClick={() => handleHourChange(hour)}
                     className={`
-                      w-full py-2 px-3 rounded-lg text-sm font-medium transition-all duration-150 mb-1
+                      w-full py-1 px-2 rounded-md text-xs font-medium transition-all duration-150 mb-0.5
                       ${
                         selectedHour === hour
-                          ? 'bg-pink-500 text-white shadow-md scale-105'
+                          ? 'bg-pink-500 text-white shadow-sm scale-105'
                           : 'text-gray-700 dark:text-gray-300 hover:bg-pink-100 dark:hover:bg-pink-800/50'
                       }
                     `}
@@ -133,21 +230,21 @@ export default function CustomTimePicker({ value, onChange, className = '' }: Cu
             </div>
 
             {/* Divider */}
-            <div className="w-px bg-pink-200 dark:bg-pink-700/50 my-2"></div>
+            <div className="w-px bg-pink-200 dark:bg-pink-700/50 my-1"></div>
 
             {/* Minutes */}
             <div className="flex-1">
-              <div className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-2 text-center">Dakika</div>
-              <div ref={minutesRef} className="overflow-y-auto max-h-[240px] pr-2 custom-scrollbar">
+              <div className="text-[10px] font-semibold text-gray-600 dark:text-gray-300 mb-1 text-center">Dakika</div>
+              <div ref={minutesRef} className="overflow-y-auto max-h-[200px] pr-1 custom-scrollbar">
                 {minutesList.map((minute) => (
                   <button
                     key={minute}
                     onClick={() => handleMinuteChange(minute)}
                     className={`
-                      w-full py-2 px-3 rounded-lg text-sm font-medium transition-all duration-150 mb-1
+                      w-full py-1 px-2 rounded-md text-xs font-medium transition-all duration-150 mb-0.5
                       ${
                         selectedMinute === minute
-                          ? 'bg-pink-500 text-white shadow-md scale-105'
+                          ? 'bg-pink-500 text-white shadow-sm scale-105'
                           : 'text-gray-700 dark:text-gray-300 hover:bg-pink-100 dark:hover:bg-pink-800/50'
                       }
                     `}
@@ -160,15 +257,16 @@ export default function CustomTimePicker({ value, onChange, className = '' }: Cu
           </div>
 
           {/* Footer */}
-          <div className="px-4 py-3 border-t border-pink-200 dark:border-pink-700/50 bg-pink-50 dark:bg-pink-900/30">
+          <div className="px-3 py-2 border-t border-pink-200 dark:border-pink-700/50 bg-pink-50 dark:bg-pink-900/30">
             <button
               onClick={() => setIsOpen(false)}
-              className="w-full px-4 py-2 bg-pink-600 hover:bg-pink-700 text-white rounded-lg transition-colors duration-200 font-medium text-sm"
+              className="w-full px-3 py-1.5 bg-pink-600 hover:bg-pink-700 text-white rounded-md transition-colors duration-200 font-medium text-xs"
             >
               Tamam
             </button>
           </div>
         </div>
+        , document.body
       )}
     </div>
   );
