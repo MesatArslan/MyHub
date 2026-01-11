@@ -5,9 +5,20 @@ import { RoutineScheduleItem } from '@/types';
 import { RoutineScheduleItemResponseDto } from '@/dto/routine.dto';
 import CustomTimePicker from './CustomTimePicker';
 
+export interface RoutineProgram {
+  id: string;
+  name: string;
+  day: string;
+}
+
 export interface WeeklyDaySelectorProps {
   selectedDay: string;
+  selectedProgramId?: string;
+  programs?: RoutineProgram[];
   onDayChange: (day: string) => void;
+  onProgramChange?: (programId: string) => void;
+  onAddProgram?: () => void;
+  onUpdateProgramName?: (programId: string, newName: string) => void;
   isEditMode?: boolean;
   onEditModeChange?: (editMode: boolean) => void;
   savedItems?: RoutineScheduleItemResponseDto[];
@@ -31,8 +42,13 @@ const DAYS_OF_WEEK = [
 ];
 
 export default function WeeklyDaySelector({ 
-  selectedDay, 
-  onDayChange, 
+  selectedDay,
+  selectedProgramId,
+  programs = [],
+  onDayChange,
+  onProgramChange,
+  onAddProgram,
+  onUpdateProgramName,
   isEditMode = false, 
   onEditModeChange,
   savedItems = [],
@@ -44,6 +60,9 @@ export default function WeeklyDaySelector({
   onUnsavedItemsChange,
   onReorderItems
 }: WeeklyDaySelectorProps) {
+  
+  const [editingProgramId, setEditingProgramId] = useState<string | null>(null);
+  const [editingProgramName, setEditingProgramName] = useState<string>('');
   
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -195,6 +214,85 @@ export default function WeeklyDaySelector({
           </button>
         ))}
       </div>
+
+      {/* Program Selector - Show when multiple programs exist or in edit mode */}
+      {(programs.length > 1 || isEditMode) && (
+        <div className="mt-4 flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
+            {programs.map((program) => (
+              <div key={program.id} className="flex items-center gap-1 group">
+                {editingProgramId === program.id && isEditMode ? (
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="text"
+                      value={editingProgramName}
+                      onChange={(e) => setEditingProgramName(e.target.value)}
+                      onBlur={() => {
+                        if (editingProgramName.trim() && editingProgramName !== program.name) {
+                          onUpdateProgramName?.(program.id, editingProgramName.trim());
+                        }
+                        setEditingProgramId(null);
+                        setEditingProgramName('');
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          if (editingProgramName.trim() && editingProgramName !== program.name) {
+                            onUpdateProgramName?.(program.id, editingProgramName.trim());
+                          }
+                          setEditingProgramId(null);
+                          setEditingProgramName('');
+                        } else if (e.key === 'Escape') {
+                          setEditingProgramId(null);
+                          setEditingProgramName('');
+                        }
+                      }}
+                      autoFocus
+                      className="px-3 py-1.5 text-sm border border-pink-300 dark:border-pink-600 rounded-lg bg-white dark:bg-pink-900/50 text-gray-900 dark:text-white focus:ring-2 focus:ring-pink-500 focus:border-pink-500 min-w-[120px]"
+                    />
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => onProgramChange?.(program.id)}
+                    onDoubleClick={() => {
+                      if (isEditMode) {
+                        setEditingProgramId(program.id);
+                        setEditingProgramName(program.name);
+                      }
+                    }}
+                    className={`
+                      px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 relative
+                      ${selectedProgramId === program.id
+                        ? 'bg-pink-600 text-white shadow-lg'
+                        : 'bg-white/80 dark:bg-pink-900/30 text-gray-700 dark:text-gray-300 hover:bg-pink-100 dark:hover:bg-pink-800/50'
+                      }
+                    `}
+                    title={isEditMode ? 'Çift tıklayarak düzenle' : ''}
+                  >
+                    {program.name}
+                    {isEditMode && (
+                      <span className="ml-2 text-xs opacity-60 hidden group-hover:inline">(çift tıkla)</span>
+                    )}
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+          
+          {/* Add Program Button - Only in edit mode */}
+          {isEditMode && onAddProgram && (
+            <button
+              onClick={onAddProgram}
+              className="flex items-center gap-2 px-4 py-2 bg-pink-500 hover:bg-pink-600 text-white rounded-lg transition-colors duration-200 text-sm font-medium shadow-sm"
+              title="Yeni Program Ekle"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              Program Ekle
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Add Routine Button - Show under days boxes when in edit mode */}
       {isEditMode && onAddRoutine && (

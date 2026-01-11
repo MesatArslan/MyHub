@@ -8,6 +8,12 @@ import {
 } from '@/dto/routine.dto';
 import { StorageService } from './storage.service';
 
+export interface RoutineProgram {
+  id: string;
+  name: string;
+  day: string;
+}
+
 /**
  * Routine Tracker Service
  * Handles all routine schedule item business logic
@@ -15,9 +21,43 @@ import { StorageService } from './storage.service';
 export class RoutineTrackerService {
   
   /**
+   * Program management methods
+   */
+  static getPrograms(day: string): RoutineProgram[] {
+    return StorageService.getRoutinePrograms(day);
+  }
+
+  static createProgram(program: RoutineProgram): void {
+    StorageService.saveRoutineProgram(program);
+  }
+
+  static deleteProgram(programId: string, day: string): void {
+    StorageService.deleteRoutineProgram(programId, day);
+    // Also delete all schedule items for this program
+    StorageService.deleteRoutineScheduleItems(day, programId);
+  }
+
+  static updateProgramName(programId: string, day: string, newName: string): void {
+    const programs = this.getPrograms(day);
+    const program = programs.find(p => p.id === programId);
+    if (program) {
+      program.name = newName;
+      StorageService.saveRoutineProgram(program);
+    }
+  }
+
+  static getSelectedProgram(day: string): string | null {
+    return StorageService.getSelectedProgram(day);
+  }
+
+  static saveSelectedProgram(day: string, programId: string): void {
+    StorageService.saveSelectedProgram(day, programId);
+  }
+
+  /**
    * Create a new routine schedule item
    */
-  static createScheduleItem(dto: CreateRoutineScheduleItemDto, day: string): RoutineScheduleItemResponseDto {
+  static createScheduleItem(dto: CreateRoutineScheduleItemDto, day: string, programId: string = 'default'): RoutineScheduleItemResponseDto {
     // Validate input
     this.validateCreateScheduleItemDto(dto);
     
@@ -32,27 +72,27 @@ export class RoutineTrackerService {
     };
 
     // Save to storage - get domain models directly
-    const existingItems = this.getScheduleItemsDomain(day);
+    const existingItems = this.getScheduleItemsDomain(day, programId);
     const updatedItems = [...existingItems, item];
-    this.saveScheduleItems(updatedItems, day);
+    this.saveScheduleItems(updatedItems, day, programId);
     
     return toRoutineScheduleItemResponseDto(item);
   }
 
   /**
-   * Get all schedule items for a specific day
+   * Get all schedule items for a specific day and program
    * Returns Response DTOs for consistent data structure
    */
-  static getScheduleItems(day: string): RoutineScheduleItemResponseDto[] {
-    const items = StorageService.getRoutineScheduleItems(day);
+  static getScheduleItems(day: string, programId: string = 'default'): RoutineScheduleItemResponseDto[] {
+    const items = StorageService.getRoutineScheduleItems(day, programId);
     return items.map(item => toRoutineScheduleItemResponseDto(item));
   }
 
   /**
    * Get schedule item by ID
    */
-  static getScheduleItemById(id: string, day: string): RoutineScheduleItemResponseDto | null {
-    const items = this.getScheduleItemsDomain(day);
+  static getScheduleItemById(id: string, day: string, programId: string = 'default'): RoutineScheduleItemResponseDto | null {
+    const items = this.getScheduleItemsDomain(day, programId);
     const item = items.find(i => i.id === id);
     return item ? toRoutineScheduleItemResponseDto(item) : null;
   }
@@ -60,8 +100,8 @@ export class RoutineTrackerService {
   /**
    * Update a schedule item
    */
-  static updateScheduleItem(dto: UpdateRoutineScheduleItemDto, day: string): RoutineScheduleItemResponseDto | null {
-    const items = this.getScheduleItemsDomain(day);
+  static updateScheduleItem(dto: UpdateRoutineScheduleItemDto, day: string, programId: string = 'default'): RoutineScheduleItemResponseDto | null {
+    const items = this.getScheduleItemsDomain(day, programId);
     const index = items.findIndex(i => i.id === dto.id);
     
     if (index === -1) {
@@ -88,7 +128,7 @@ export class RoutineTrackerService {
 
     // Update in array
     items[index] = updatedItem;
-    this.saveScheduleItems(items, day);
+    this.saveScheduleItems(items, day, programId);
     
     return toRoutineScheduleItemResponseDto(updatedItem);
   }
@@ -96,22 +136,22 @@ export class RoutineTrackerService {
   /**
    * Delete a schedule item
    */
-  static deleteScheduleItem(id: string, day: string): boolean {
-    const items = this.getScheduleItemsDomain(day);
+  static deleteScheduleItem(id: string, day: string, programId: string = 'default'): boolean {
+    const items = this.getScheduleItemsDomain(day, programId);
     const filteredItems = items.filter(i => i.id !== id);
     
     if (filteredItems.length === items.length) {
       return false; // Item not found
     }
 
-    this.saveScheduleItems(filteredItems, day);
+    this.saveScheduleItems(filteredItems, day, programId);
     return true;
   }
 
   /**
    * Reorder schedule items
    */
-  static reorderScheduleItems(reorderedItems: RoutineScheduleItemResponseDto[], day: string): void {
+  static reorderScheduleItems(reorderedItems: RoutineScheduleItemResponseDto[], day: string, programId: string = 'default'): void {
     // Convert Response DTOs back to domain models for storage
     const domainItems: RoutineScheduleItem[] = reorderedItems.map(dto => {
       const domainItem = toRoutineScheduleItem({
@@ -129,35 +169,21 @@ export class RoutineTrackerService {
       } as RoutineScheduleItem;
     });
     
-    this.saveScheduleItems(domainItems, day);
-  }
-
-  /**
-   * Get all schedule items for all days
-   */
-  static getAllScheduleItems(): Record<string, RoutineScheduleItemResponseDto[]> {
-    const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-    const allItems: Record<string, RoutineScheduleItemResponseDto[]> = {};
-    
-    days.forEach(day => {
-      allItems[day] = this.getScheduleItems(day);
-    });
-    
-    return allItems;
+    this.saveScheduleItems(domainItems, day, programId);
   }
 
   /**
    * Get domain models directly from storage (internal method)
    */
-  private static getScheduleItemsDomain(day: string): RoutineScheduleItem[] {
-    return StorageService.getRoutineScheduleItems(day);
+  private static getScheduleItemsDomain(day: string, programId: string = 'default'): RoutineScheduleItem[] {
+    return StorageService.getRoutineScheduleItems(day, programId);
   }
 
   /**
    * Save schedule items (internal method - uses storage service)
    */
-  private static saveScheduleItems(items: RoutineScheduleItem[], day: string): void {
-    StorageService.saveRoutineScheduleItems(items, day);
+  private static saveScheduleItems(items: RoutineScheduleItem[], day: string, programId: string = 'default'): void {
+    StorageService.saveRoutineScheduleItems(items, day, programId);
   }
 
   /**

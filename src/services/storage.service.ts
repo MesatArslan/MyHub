@@ -17,6 +17,8 @@ export class StorageService {
     ROUTINE_BLOCKS: 'myhub_routine_blocks',
     GOALS: 'myhub_goals',
     ROUTINE_SCHEDULE_ITEMS: 'myhub_routine_schedule_items',
+    ROUTINE_PROGRAMS: 'myhub_routine_programs',
+    SELECTED_PROGRAMS: 'myhub_selected_programs',
   };
 
   // Generic storage methods
@@ -422,30 +424,47 @@ export class StorageService {
     this.saveGoals(filteredGoals);
   }
 
-  // Routine Schedule Items storage methods (day-specific) - Using DTOs
-  static saveRoutineScheduleItems(items: RoutineScheduleItem[], day?: string): void {
+  // Routine Programs storage methods
+  static saveRoutineProgram(program: { id: string; name: string; day: string }): void {
+    const programs = this.getRoutinePrograms(program.day);
+    const existingIndex = programs.findIndex(p => p.id === program.id);
+    
+    if (existingIndex >= 0) {
+      programs[existingIndex] = program;
+    } else {
+      programs.push(program);
+    }
+    
+    const dayKey = `${this.STORAGE_KEYS.ROUTINE_PROGRAMS}_${program.day}`;
+    this.setItem(dayKey, programs);
+  }
+
+  static getRoutinePrograms(day: string): { id: string; name: string; day: string }[] {
+    const dayKey = `${this.STORAGE_KEYS.ROUTINE_PROGRAMS}_${day}`;
+    return this.getItem<{ id: string; name: string; day: string }[]>(dayKey) || [];
+  }
+
+  static deleteRoutineProgram(programId: string, day: string): void {
+    const programs = this.getRoutinePrograms(day);
+    const filtered = programs.filter(p => p.id !== programId);
+    const dayKey = `${this.STORAGE_KEYS.ROUTINE_PROGRAMS}_${day}`;
+    this.setItem(dayKey, filtered);
+  }
+
+  // Routine Schedule Items storage methods (day and program-specific) - Using DTOs
+  static saveRoutineScheduleItems(items: RoutineScheduleItem[], day: string, programId: string = 'default'): void {
     // Convert domain models to DTOs before saving
     const dtos: RoutineScheduleItemResponseDto[] = items.map(item => 
       toRoutineScheduleItemResponseDto(item)
     );
     
-    if (day) {
-      const dayKey = `${this.STORAGE_KEYS.ROUTINE_SCHEDULE_ITEMS}_${day}`;
-      this.setItem(dayKey, dtos);
-    } else {
-      this.setItem(this.STORAGE_KEYS.ROUTINE_SCHEDULE_ITEMS, dtos);
-    }
+    const dayProgramKey = `${this.STORAGE_KEYS.ROUTINE_SCHEDULE_ITEMS}_${day}_${programId}`;
+    this.setItem(dayProgramKey, dtos);
   }
 
-  static getRoutineScheduleItems(day?: string): RoutineScheduleItem[] {
-    let dtos: RoutineScheduleItemResponseDto[] = [];
-    
-    if (day) {
-      const dayKey = `${this.STORAGE_KEYS.ROUTINE_SCHEDULE_ITEMS}_${day}`;
-      dtos = this.getItem<RoutineScheduleItemResponseDto[]>(dayKey) || [];
-    } else {
-      dtos = this.getItem<RoutineScheduleItemResponseDto[]>(this.STORAGE_KEYS.ROUTINE_SCHEDULE_ITEMS) || [];
-    }
+  static getRoutineScheduleItems(day: string, programId: string = 'default'): RoutineScheduleItem[] {
+    const dayProgramKey = `${this.STORAGE_KEYS.ROUTINE_SCHEDULE_ITEMS}_${day}_${programId}`;
+    const dtos = this.getItem<RoutineScheduleItemResponseDto[]>(dayProgramKey) || [];
     
     // Convert DTOs back to domain models
     return dtos.map(dto => {
@@ -463,6 +482,27 @@ export class StorageService {
         updatedAt: dto.updatedAt instanceof Date ? dto.updatedAt : new Date(dto.updatedAt),
       } as RoutineScheduleItem;
     });
+  }
+
+  static deleteRoutineScheduleItems(day: string, programId: string): void {
+    const dayProgramKey = `${this.STORAGE_KEYS.ROUTINE_SCHEDULE_ITEMS}_${day}_${programId}`;
+    localStorage.removeItem(dayProgramKey);
+  }
+
+  // Selected program per day storage
+  static saveSelectedProgram(day: string, programId: string): void {
+    const selectedPrograms = this.getSelectedPrograms();
+    selectedPrograms[day] = programId;
+    this.setItem(this.STORAGE_KEYS.SELECTED_PROGRAMS, selectedPrograms);
+  }
+
+  static getSelectedProgram(day: string): string | null {
+    const selectedPrograms = this.getSelectedPrograms();
+    return selectedPrograms[day] || null;
+  }
+
+  private static getSelectedPrograms(): Record<string, string> {
+    return this.getItem<Record<string, string>>(this.STORAGE_KEYS.SELECTED_PROGRAMS) || {};
   }
 
 

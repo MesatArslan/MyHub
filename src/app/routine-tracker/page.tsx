@@ -12,28 +12,104 @@ import {
 } from '@/dto/routine.dto';
 import { RoutineScheduleItem } from '@/types';
 
+interface RoutineProgram {
+  id: string;
+  name: string;
+  day: string;
+}
+
 export default function RoutineTracker() {
   const [selectedDay, setSelectedDay] = useState('monday');
+  const [selectedProgramId, setSelectedProgramId] = useState<string>('default');
+  const [programs, setPrograms] = useState<RoutineProgram[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
   const [savedItems, setSavedItems] = useState<RoutineScheduleItemResponseDto[]>([]);
   const [unsavedItems, setUnsavedItems] = useState<RoutineScheduleItem[]>([]);
+
+  // Load programs for the selected day
+  useEffect(() => {
+    const dayPrograms = RoutineTrackerService.getPrograms(selectedDay);
+    setPrograms(dayPrograms);
+    
+    // If no programs exist, create default one
+    if (dayPrograms.length === 0) {
+      const defaultProgram: RoutineProgram = {
+        id: 'default',
+        name: 'Ana Program',
+        day: selectedDay,
+      };
+      RoutineTrackerService.createProgram(defaultProgram);
+      setPrograms([defaultProgram]);
+      const rememberedProgramId = RoutineTrackerService.getSelectedProgram(selectedDay);
+      setSelectedProgramId(rememberedProgramId || 'default');
+      if (!rememberedProgramId) {
+        RoutineTrackerService.saveSelectedProgram(selectedDay, 'default');
+      }
+    } else {
+      // Try to load remembered program for this day
+      const rememberedProgramId = RoutineTrackerService.getSelectedProgram(selectedDay);
+      const programToSelect = rememberedProgramId && dayPrograms.find(p => p.id === rememberedProgramId)
+        ? rememberedProgramId
+        : dayPrograms[0].id;
+      
+      setSelectedProgramId(programToSelect);
+      if (!rememberedProgramId) {
+        RoutineTrackerService.saveSelectedProgram(selectedDay, programToSelect);
+      }
+    }
+  }, [selectedDay]);
+
+  // Load saved schedule items when day or program changes
+  useEffect(() => {
+    if (selectedProgramId) {
+      const items = RoutineTrackerService.getScheduleItems(selectedDay, selectedProgramId);
+      setSavedItems(items);
+    }
+  }, [selectedDay, selectedProgramId]);
 
   const handleDayChange = (day: string) => {
     setSelectedDay(day);
     // Clear unsaved items when changing days
     setUnsavedItems([]);
+    // Program selection will be loaded by useEffect based on remembered selection
   };
 
-  // Load saved schedule items when day changes
-  useEffect(() => {
-    const items = RoutineTrackerService.getScheduleItems(selectedDay);
-    setSavedItems(items);
-  }, [selectedDay]);
+  const handleProgramChange = (programId: string) => {
+    setSelectedProgramId(programId);
+    setUnsavedItems([]);
+    // Remember this selection for this day
+    RoutineTrackerService.saveSelectedProgram(selectedDay, programId);
+  };
+
+  const handleAddProgram = () => {
+    // Prompt for program name
+    const programName = prompt('Program adını girin:', `Program ${programs.length + 1}`);
+    if (!programName || programName.trim() === '') {
+      return; // User cancelled or entered empty name
+    }
+
+    const newProgram: RoutineProgram = {
+      id: `program_${Date.now()}`,
+      name: programName.trim(),
+      day: selectedDay,
+    };
+    RoutineTrackerService.createProgram(newProgram);
+    setPrograms([...programs, newProgram]);
+    setSelectedProgramId(newProgram.id);
+    RoutineTrackerService.saveSelectedProgram(selectedDay, newProgram.id);
+  };
+
+  const handleUpdateProgramName = (programId: string, newName: string) => {
+    RoutineTrackerService.updateProgramName(programId, selectedDay, newName);
+    // Reload programs to reflect the change
+    const updatedPrograms = RoutineTrackerService.getPrograms(selectedDay);
+    setPrograms(updatedPrograms);
+  };
 
   const handleSaveItem = (item: RoutineScheduleItem) => {
     // Check if this item exists in storage (not just in current savedItems state)
     // This handles the case where item was moved to unsavedItems for editing
-    const existingItemInStorage = RoutineTrackerService.getScheduleItemById(item.id, selectedDay);
+    const existingItemInStorage = RoutineTrackerService.getScheduleItemById(item.id, selectedDay, selectedProgramId);
     
     if (existingItemInStorage) {
       // Update existing item
@@ -45,7 +121,7 @@ export default function RoutineTracker() {
         whereToDo: item.whereToDo,
       };
       
-      RoutineTrackerService.updateScheduleItem(updateDto, selectedDay);
+      RoutineTrackerService.updateScheduleItem(updateDto, selectedDay, selectedProgramId);
     } else {
       // Create new item
       const dto: CreateRoutineScheduleItemDto = toCreateRoutineScheduleItemDto({
@@ -53,7 +129,7 @@ export default function RoutineTracker() {
         day: selectedDay,
       });
       
-      RoutineTrackerService.createScheduleItem(dto, selectedDay);
+      RoutineTrackerService.createScheduleItem(dto, selectedDay, selectedProgramId);
     }
     
     // Remove from unsaved items
@@ -61,15 +137,15 @@ export default function RoutineTracker() {
     setUnsavedItems(updatedUnsavedItems);
     
     // Reload items to get updated list (now returns Response DTOs)
-    const updatedItems = RoutineTrackerService.getScheduleItems(selectedDay);
+    const updatedItems = RoutineTrackerService.getScheduleItems(selectedDay, selectedProgramId);
     setSavedItems(updatedItems);
   };
 
   const handleDeleteItem = (id: string) => {
-    RoutineTrackerService.deleteScheduleItem(id, selectedDay);
+    RoutineTrackerService.deleteScheduleItem(id, selectedDay, selectedProgramId);
     
     // Reload items to get updated list (now returns Response DTOs)
-    const updatedItems = RoutineTrackerService.getScheduleItems(selectedDay);
+    const updatedItems = RoutineTrackerService.getScheduleItems(selectedDay, selectedProgramId);
     setSavedItems(updatedItems);
   };
 
@@ -95,7 +171,7 @@ export default function RoutineTracker() {
   };
 
   const handleReorderItems = (reorderedItems: RoutineScheduleItemResponseDto[]) => {
-    RoutineTrackerService.reorderScheduleItems(reorderedItems, selectedDay);
+    RoutineTrackerService.reorderScheduleItems(reorderedItems, selectedDay, selectedProgramId);
     setSavedItems(reorderedItems);
   };
 
@@ -182,8 +258,13 @@ export default function RoutineTracker() {
         <div className="max-w-6xl mx-auto space-y-8">
           {/* Weekly Day Selector with all routine functionality */}
           <WeeklyDaySelector 
-            selectedDay={selectedDay} 
+            selectedDay={selectedDay}
+            selectedProgramId={selectedProgramId}
+            programs={programs}
             onDayChange={handleDayChange}
+            onProgramChange={handleProgramChange}
+            onAddProgram={handleAddProgram}
+            onUpdateProgramName={handleUpdateProgramName}
             isEditMode={isEditMode}
             onEditModeChange={setIsEditMode}
             savedItems={savedItems}
