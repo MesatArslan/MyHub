@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { RoutineScheduleItem } from '@/types';
 import { RoutineScheduleItemResponseDto } from '@/dto/routine.dto';
+import CustomTimePicker from './CustomTimePicker';
 
 export interface WeeklyDaySelectorProps {
   selectedDay: string;
@@ -302,18 +303,14 @@ export default function WeeklyDaySelector({
               <div className="flex-1 flex items-center gap-3 min-w-0">
                 {/* Time inputs */}
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  <input
-                    type="time"
+                  <CustomTimePicker
                     value={item.startTime}
-                    onChange={(e) => updateScheduleItem(item.id, 'startTime', e.target.value)}
-                    className="px-3 py-2 text-sm border border-pink-200 dark:border-pink-700/50 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 bg-white dark:bg-pink-900/40 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-300 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-70 dark:[&::-webkit-calendar-picker-indicator]:opacity-90 [&::-webkit-calendar-picker-indicator]:invert-0 dark:[&::-webkit-calendar-picker-indicator]:invert"
+                    onChange={(value) => updateScheduleItem(item.id, 'startTime', value)}
                   />
                   <span className="text-pink-400 dark:text-pink-400 font-medium">-</span>
-                  <input
-                    type="time"
+                  <CustomTimePicker
                     value={item.endTime}
-                    onChange={(e) => updateScheduleItem(item.id, 'endTime', e.target.value)}
-                    className="px-3 py-2 text-sm border border-pink-200 dark:border-pink-700/50 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 bg-white dark:bg-pink-900/40 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-300 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-70 dark:[&::-webkit-calendar-picker-indicator]:opacity-90 [&::-webkit-calendar-picker-indicator]:invert-0 dark:[&::-webkit-calendar-picker-indicator]:invert"
+                    onChange={(value) => updateScheduleItem(item.id, 'endTime', value)}
                   />
                 </div>
 
