@@ -6,6 +6,7 @@ import { RoutineTrackerService } from '@/services/routine-tracker.service';
 import { 
   CreateRoutineScheduleItemDto,
   RoutineScheduleItemResponseDto,
+  UpdateRoutineScheduleItemDto,
   toRoutineScheduleItem,
   toCreateRoutineScheduleItemDto
 } from '@/dto/routine.dto';
@@ -30,14 +31,34 @@ export default function RoutineTracker() {
   }, [selectedDay]);
 
   const handleSaveItem = (item: RoutineScheduleItem) => {
-    // Convert domain model to Create DTO
-    const dto: CreateRoutineScheduleItemDto = toCreateRoutineScheduleItemDto({
-      ...item,
-      day: selectedDay,
-    });
-
-    // Use service to create and save (returns Response DTO)
-    RoutineTrackerService.createScheduleItem(dto, selectedDay);
+    // Check if this item exists in storage (not just in current savedItems state)
+    // This handles the case where item was moved to unsavedItems for editing
+    const existingItemInStorage = RoutineTrackerService.getScheduleItemById(item.id, selectedDay);
+    
+    if (existingItemInStorage) {
+      // Update existing item
+      const updateDto: UpdateRoutineScheduleItemDto = {
+        id: item.id,
+        startTime: item.startTime,
+        endTime: item.endTime,
+        whatToDo: item.whatToDo,
+        whereToDo: item.whereToDo,
+      };
+      
+      RoutineTrackerService.updateScheduleItem(updateDto, selectedDay);
+    } else {
+      // Create new item
+      const dto: CreateRoutineScheduleItemDto = toCreateRoutineScheduleItemDto({
+        ...item,
+        day: selectedDay,
+      });
+      
+      RoutineTrackerService.createScheduleItem(dto, selectedDay);
+    }
+    
+    // Remove from unsaved items
+    const updatedUnsavedItems = unsavedItems.filter(i => i.id !== item.id);
+    setUnsavedItems(updatedUnsavedItems);
     
     // Reload items to get updated list (now returns Response DTOs)
     const updatedItems = RoutineTrackerService.getScheduleItems(selectedDay);
@@ -50,6 +71,27 @@ export default function RoutineTracker() {
     // Reload items to get updated list (now returns Response DTOs)
     const updatedItems = RoutineTrackerService.getScheduleItems(selectedDay);
     setSavedItems(updatedItems);
+  };
+
+  const handleEditItem = (item: RoutineScheduleItemResponseDto) => {
+    // Convert Response DTO to domain model for editing
+    const domainItem: RoutineScheduleItem = {
+      id: item.id,
+      startTime: item.startTime,
+      endTime: item.endTime,
+      whatToDo: item.whatToDo,
+      whereToDo: item.whereToDo,
+      day: item.day,
+      createdAt: item.createdAt instanceof Date ? item.createdAt : new Date(item.createdAt),
+      updatedAt: item.updatedAt instanceof Date ? item.updatedAt : new Date(item.updatedAt),
+    };
+
+    // Remove from saved items
+    const updatedSavedItems = savedItems.filter(i => i.id !== item.id);
+    setSavedItems(updatedSavedItems);
+
+    // Add to unsaved items for editing
+    setUnsavedItems([...unsavedItems, domainItem]);
   };
 
   const handleReorderItems = (reorderedItems: RoutineScheduleItemResponseDto[]) => {
@@ -149,6 +191,7 @@ export default function RoutineTracker() {
             onAddRoutine={handleAddRoutine}
             onSaveItem={handleSaveItem}
             onDeleteItem={handleDeleteItem}
+            onEditItem={handleEditItem}
             onUnsavedItemsChange={setUnsavedItems}
             onReorderItems={handleReorderItems}
           />
