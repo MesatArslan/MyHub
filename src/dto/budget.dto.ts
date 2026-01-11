@@ -32,7 +32,7 @@ export interface UpdateBudgetRequestDto {
 
 export interface CreateIncomeRequestDto {
   amount: number;
-  category: BudgetCategory;
+  source: string; // income source (e.g., Maaş, Freelance, Hediye)
   date: Date;
   accountTarget: string; // wallet or bank account where money goes
   description?: string;

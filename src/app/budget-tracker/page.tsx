@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { BudgetService } from '@/services/budget.service';
 import { StorageService } from '@/services/storage.service';
 import { CustomCategoryService } from '@/services/custom-category.service';
 import { Budget, Transaction, BudgetCategory, TransactionType, Currency, BudgetType, BudgetPeriod, RecurrenceInterval } from '@/types';
@@ -114,8 +115,43 @@ export default function BudgetTracker() {
   const loadData = () => {
     // Generate due recurring transactions before reading
     StorageService.runDueRecurringTemplates();
-    setBudgets(StorageService.getBudgets());
-    setTransactions(StorageService.getTransactions());
+    setBudgets(BudgetService.getAllBudgets().map(b => {
+      // Convert BudgetResponseDto back to Budget for component state
+      return {
+        id: b.id,
+        name: b.name,
+        description: b.description,
+        category: b.category,
+        type: b.type,
+        amount: b.amount,
+        currency: b.currency,
+        period: b.period,
+        startDate: b.startDate,
+        endDate: b.endDate,
+        isActive: b.isActive,
+        targetAmount: b.targetAmount,
+        createdAt: b.createdAt,
+        updatedAt: b.updatedAt
+      } as Budget;
+    }));
+    setTransactions(BudgetService.getAllTransactions().map(t => {
+      // Convert TransactionResponseDto back to Transaction for component state
+      return {
+        id: t.id,
+        budgetId: t.budgetId,
+        amount: t.amount,
+        description: t.description,
+        category: t.category,
+        type: t.type,
+        date: t.date,
+        tags: t.tags,
+        receipt: t.receipt,
+        accountTarget: t.accountTarget,
+        customCategoryId: undefined,
+        createdAt: t.createdAt,
+        updatedAt: t.updatedAt
+      } as Transaction;
+    }));
     setCustomCategories(CustomCategoryService.getCustomCategories());
   };
 
@@ -157,7 +193,7 @@ export default function BudgetTracker() {
 
   const handleDeleteBudget = (budgetId: string) => {
     if (confirm('Bu bütçeyi silmek istediğinizden emin misiniz?')) {
-      StorageService.deleteBudget(budgetId);
+      BudgetService.deleteBudget(budgetId);
       loadData();
     }
   };
@@ -186,8 +222,8 @@ export default function BudgetTracker() {
 
       const dates = computeDates();
 
-      const updatedBudget: Budget = {
-        ...editingBudget,
+      BudgetService.updateBudget({
+        id: editingBudget.id,
         name: budgetForm.name,
         description: budgetForm.description,
         category: budgetForm.category,
@@ -195,10 +231,8 @@ export default function BudgetTracker() {
         amount: parseFloat(budgetForm.amount),
         currency: budgetForm.currency,
         startDate: dates.startDate,
-        endDate: dates.endDate,
-        updatedAt: new Date()
-      };
-      StorageService.updateBudget(updatedBudget);
+        endDate: dates.endDate
+      });
     } else {
       // Create new budget
       const now = new Date();
@@ -209,8 +243,7 @@ export default function BudgetTracker() {
         ? new Date(now.getFullYear(), now.getMonth() + (monthlyEndDay >= monthlyStartDay ? 0 : 1), monthlyEndDay)
         : undefined;
 
-      const newBudget: Budget = {
-        id: Date.now().toString(),
+      BudgetService.createBudget({
         name: budgetForm.name,
         description: budgetForm.description,
         category: budgetForm.category,
@@ -220,11 +253,8 @@ export default function BudgetTracker() {
         period: BudgetPeriod.MONTH,
         startDate,
         endDate,
-        isActive: true,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-      StorageService.addBudget(newBudget);
+        isActive: true
+      });
     }
 
     loadData();
@@ -243,30 +273,24 @@ export default function BudgetTracker() {
 
     if (editingTransaction) {
       // Update existing transaction
-      const updatedTransaction: Transaction = {
-        ...editingTransaction,
+      BudgetService.updateTransaction({
+        id: editingTransaction.id,
         amount: parseFloat(transactionForm.amount),
         description: transactionForm.description,
         category: transactionForm.category,
         type: transactionForm.type,
-        date: new Date(transactionForm.date),
-        updatedAt: new Date()
-      };
-      StorageService.updateTransaction(updatedTransaction);
+        date: new Date(transactionForm.date)
+      });
     } else {
       // Create new transaction
-      const newTransaction: Transaction = {
-        id: Date.now().toString(),
-        budgetId: '', // For now, we'll leave this empty
+      BudgetService.createTransaction({
+        budgetId: '',
         amount: parseFloat(transactionForm.amount),
         description: transactionForm.description,
         category: transactionForm.category,
         type: transactionForm.type,
-        date: new Date(transactionForm.date),
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-      StorageService.addTransaction(newTransaction);
+        date: new Date(transactionForm.date)
+      });
     }
 
     loadData();
@@ -710,36 +734,25 @@ export default function BudgetTracker() {
                       const parsedAmount = parseTurkishNumber(incomeForm.amount);
                       
                       if (editingIncomeId) {
-                        // Update existing transaction
-                        const existingTransaction = transactions.find(t => t.id === editingIncomeId);
-                        if (existingTransaction) {
-                          const updatedTransaction: Transaction = {
-                            ...existingTransaction,
-                            amount: parsedAmount,
-                            description: incomeForm.description || incomeForm.source,
-                            date: new Date(incomeForm.date),
-                            accountTarget: incomeForm.accountTarget,
-                            tags: [`source:${incomeForm.source}`],
-                            updatedAt: new Date()
-                          };
-                          StorageService.updateTransaction(updatedTransaction);
-                        }
-                      } else {
-                        // Create new transaction
-                        const newTransaction: Transaction = {
-                          id: Date.now().toString(),
-                          budgetId: '',
+                        // Update existing transaction using BudgetService
+                        BudgetService.updateTransaction({
+                          id: editingIncomeId,
                           amount: parsedAmount,
                           description: incomeForm.description || incomeForm.source,
-                          category: BudgetCategory.INCOME,
-                          type: TransactionType.INCOME,
                           date: new Date(incomeForm.date),
                           accountTarget: incomeForm.accountTarget,
-                          createdAt: new Date(),
-                          updatedAt: new Date(),
                           tags: [`source:${incomeForm.source}`]
-                        };
-                        StorageService.addTransaction(newTransaction);
+                        });
+                      } else {
+                        // Create new income using BudgetService
+                        BudgetService.createIncome({
+                          amount: parsedAmount,
+                          source: incomeForm.source,
+                          date: new Date(incomeForm.date),
+                          accountTarget: incomeForm.accountTarget,
+                          description: incomeForm.description || incomeForm.source,
+                          tags: [`source:${incomeForm.source}`]
+                        });
                       }
                       
                       loadData();
@@ -837,7 +850,7 @@ export default function BudgetTracker() {
                             <button
                               onClick={() => {
                                 if (confirm('Bu geliri silmek istediğinizden emin misiniz?')) {
-                                  StorageService.deleteTransaction(transaction.id);
+                                  BudgetService.deleteTransaction(transaction.id);
                                   loadData();
                                 }
                               }}
