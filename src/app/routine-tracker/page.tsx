@@ -2,13 +2,19 @@
 
 import { useState, useEffect } from 'react';
 import WeeklyDaySelector from './components/WeeklyDaySelector';
+import { RoutineTrackerService } from '@/services/routine-tracker.service';
+import { 
+  CreateRoutineScheduleItemDto,
+  RoutineScheduleItemResponseDto,
+  toRoutineScheduleItem,
+  toCreateRoutineScheduleItemDto
+} from '@/dto/routine.dto';
 import { RoutineScheduleItem } from '@/types';
-import { StorageService } from '@/services/storage.service';
 
 export default function RoutineTracker() {
   const [selectedDay, setSelectedDay] = useState('monday');
   const [isEditMode, setIsEditMode] = useState(false);
-  const [savedItems, setSavedItems] = useState<RoutineScheduleItem[]>([]);
+  const [savedItems, setSavedItems] = useState<RoutineScheduleItemResponseDto[]>([]);
   const [unsavedItems, setUnsavedItems] = useState<RoutineScheduleItem[]>([]);
 
   const handleDayChange = (day: string) => {
@@ -19,42 +25,57 @@ export default function RoutineTracker() {
 
   // Load saved schedule items when day changes
   useEffect(() => {
-    const items = StorageService.getRoutineScheduleItems(selectedDay);
+    const items = RoutineTrackerService.getScheduleItems(selectedDay);
     setSavedItems(items);
   }, [selectedDay]);
 
   const handleSaveItem = (item: RoutineScheduleItem) => {
-    // Add to saved items
-    const updatedSavedItems = [...savedItems, { ...item, day: selectedDay }];
-    setSavedItems(updatedSavedItems);
+    // Convert domain model to Create DTO
+    const dto: CreateRoutineScheduleItemDto = toCreateRoutineScheduleItemDto({
+      ...item,
+      day: selectedDay,
+    });
+
+    // Use service to create and save (returns Response DTO)
+    RoutineTrackerService.createScheduleItem(dto, selectedDay);
     
-    // Save to storage
-    StorageService.saveRoutineScheduleItems(updatedSavedItems, selectedDay);
+    // Reload items to get updated list (now returns Response DTOs)
+    const updatedItems = RoutineTrackerService.getScheduleItems(selectedDay);
+    setSavedItems(updatedItems);
   };
 
   const handleDeleteItem = (id: string) => {
-    const updatedItems = savedItems.filter(item => item.id !== id);
+    RoutineTrackerService.deleteScheduleItem(id, selectedDay);
+    
+    // Reload items to get updated list (now returns Response DTOs)
+    const updatedItems = RoutineTrackerService.getScheduleItems(selectedDay);
     setSavedItems(updatedItems);
-    StorageService.saveRoutineScheduleItems(updatedItems, selectedDay);
   };
 
-  const handleReorderItems = (reorderedItems: RoutineScheduleItem[]) => {
+  const handleReorderItems = (reorderedItems: RoutineScheduleItemResponseDto[]) => {
+    RoutineTrackerService.reorderScheduleItems(reorderedItems, selectedDay);
     setSavedItems(reorderedItems);
-    StorageService.saveRoutineScheduleItems(reorderedItems, selectedDay);
   };
 
   const handleAddRoutine = () => {
-    const newItem: RoutineScheduleItem = {
-      id: Date.now().toString(),
+    // Create DTO for new item
+    const dto: CreateRoutineScheduleItemDto = {
       startTime: '09:00',
       endTime: '10:00',
       whatToDo: '',
-      whereToDo: '',
+      whereToDo: undefined, // Optional field
       day: selectedDay,
+    };
+
+    // Transform DTO to domain model
+    const newItem = toRoutineScheduleItem(dto);
+    const domainItem: RoutineScheduleItem = {
+      ...newItem,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
-    setUnsavedItems([...unsavedItems, newItem]);
+
+    setUnsavedItems([...unsavedItems, domainItem]);
   };
 
   return (

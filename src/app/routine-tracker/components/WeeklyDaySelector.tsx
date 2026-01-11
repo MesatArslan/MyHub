@@ -2,19 +2,20 @@
 
 import { useState } from 'react';
 import { RoutineScheduleItem } from '@/types';
+import { RoutineScheduleItemResponseDto } from '@/dto/routine.dto';
 
 export interface WeeklyDaySelectorProps {
   selectedDay: string;
   onDayChange: (day: string) => void;
   isEditMode?: boolean;
   onEditModeChange?: (editMode: boolean) => void;
-  savedItems?: RoutineScheduleItem[];
+  savedItems?: RoutineScheduleItemResponseDto[];
   unsavedItems?: RoutineScheduleItem[];
   onAddRoutine?: () => void;
   onSaveItem?: (item: RoutineScheduleItem) => void;
   onDeleteItem?: (id: string) => void;
   onUnsavedItemsChange?: (items: RoutineScheduleItem[]) => void;
-  onReorderItems?: (items: RoutineScheduleItem[]) => void;
+  onReorderItems?: (items: RoutineScheduleItemResponseDto[]) => void;
 }
 
 const DAYS_OF_WEEK = [

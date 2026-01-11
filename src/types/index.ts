@@ -78,7 +78,7 @@ export interface RoutineScheduleItem extends BaseEntity {
   startTime: string; // HH:MM format
   endTime: string; // HH:MM format
   whatToDo: string; // what I'll do
-  whereToDo: string; // where will I do
+  whereToDo?: string; // where will I do (optional)
   day: string; // day of week (monday, tuesday, etc.)
 }
 

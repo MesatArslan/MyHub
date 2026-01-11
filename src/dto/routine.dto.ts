@@ -132,7 +132,7 @@ export interface CreateRoutineScheduleItemDto {
   startTime: string; // HH:MM format
   endTime: string; // HH:MM format
   whatToDo: string;
-  whereToDo: string;
+  whereToDo?: string; // Optional
   day: string;
 }
 
@@ -149,7 +149,7 @@ export interface RoutineScheduleItemResponseDto {
   startTime: string;
   endTime: string;
   whatToDo: string;
-  whereToDo: string;
+  whereToDo?: string; // Optional
   day: string;
   createdAt: Date;
   updatedAt: Date;
@@ -161,7 +161,7 @@ export const toRoutineScheduleItem = (dto: CreateRoutineScheduleItemDto, id?: st
   startTime: dto.startTime,
   endTime: dto.endTime,
   whatToDo: dto.whatToDo,
-  whereToDo: dto.whereToDo,
+  whereToDo: dto.whereToDo, // Preserve optional nature
   day: dto.day,
 });
 
@@ -174,6 +174,15 @@ export const toRoutineScheduleItemResponseDto = (item: RoutineScheduleItem): Rou
   day: item.day,
   createdAt: item.createdAt,
   updatedAt: item.updatedAt,
+});
+
+// Transform from domain model to Create DTO
+export const toCreateRoutineScheduleItemDto = (item: RoutineScheduleItem): CreateRoutineScheduleItemDto => ({
+  startTime: item.startTime,
+  endTime: item.endTime,
+  whatToDo: item.whatToDo,
+  whereToDo: item.whereToDo,
+  day: item.day,
 });
 
 // Helper functions

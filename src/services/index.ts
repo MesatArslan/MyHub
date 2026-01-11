@@ -2,3 +2,4 @@
 export * from './storage.service';
 export * from './password.service';
 export * from './custom-category.service';
+export * from './routine-tracker.service';

@@ -1,4 +1,5 @@
 import { PasswordEntry, Routine, Budget, Transaction, CustomCategory, RecurringTransactionTemplate, RecurrenceInterval, BudgetCategory, RoutineBlock, Goal, RoutineScheduleItem } from '@/types';
+import { RoutineScheduleItemResponseDto, toRoutineScheduleItemResponseDto, toRoutineScheduleItem } from '@/dto/routine.dto';
 
 /**
  * Local Storage Service
@@ -421,47 +422,49 @@ export class StorageService {
     this.saveGoals(filteredGoals);
   }
 
-  // Routine Schedule Items storage methods (day-specific)
+  // Routine Schedule Items storage methods (day-specific) - Using DTOs
   static saveRoutineScheduleItems(items: RoutineScheduleItem[], day?: string): void {
+    // Convert domain models to DTOs before saving
+    const dtos: RoutineScheduleItemResponseDto[] = items.map(item => 
+      toRoutineScheduleItemResponseDto(item)
+    );
+    
     if (day) {
       const dayKey = `${this.STORAGE_KEYS.ROUTINE_SCHEDULE_ITEMS}_${day}`;
-      this.setItem(dayKey, items);
+      this.setItem(dayKey, dtos);
     } else {
-      this.setItem(this.STORAGE_KEYS.ROUTINE_SCHEDULE_ITEMS, items);
+      this.setItem(this.STORAGE_KEYS.ROUTINE_SCHEDULE_ITEMS, dtos);
     }
   }
 
   static getRoutineScheduleItems(day?: string): RoutineScheduleItem[] {
+    let dtos: RoutineScheduleItemResponseDto[] = [];
+    
     if (day) {
       const dayKey = `${this.STORAGE_KEYS.ROUTINE_SCHEDULE_ITEMS}_${day}`;
-      const items = this.getItem<RoutineScheduleItem[]>(dayKey);
-      return items || [];
+      dtos = this.getItem<RoutineScheduleItemResponseDto[]>(dayKey) || [];
     } else {
-      const items = this.getItem<RoutineScheduleItem[]>(this.STORAGE_KEYS.ROUTINE_SCHEDULE_ITEMS);
-      return items || [];
+      dtos = this.getItem<RoutineScheduleItemResponseDto[]>(this.STORAGE_KEYS.ROUTINE_SCHEDULE_ITEMS) || [];
     }
+    
+    // Convert DTOs back to domain models
+    return dtos.map(dto => {
+      const domainItem = toRoutineScheduleItem({
+        startTime: dto.startTime,
+        endTime: dto.endTime,
+        whatToDo: dto.whatToDo,
+        whereToDo: dto.whereToDo,
+        day: dto.day,
+      }, dto.id);
+      
+      return {
+        ...domainItem,
+        createdAt: dto.createdAt instanceof Date ? dto.createdAt : new Date(dto.createdAt),
+        updatedAt: dto.updatedAt instanceof Date ? dto.updatedAt : new Date(dto.updatedAt),
+      } as RoutineScheduleItem;
+    });
   }
 
-  static addRoutineScheduleItem(item: RoutineScheduleItem, day?: string): void {
-    const items = this.getRoutineScheduleItems(day || item.day);
-    items.push(item);
-    this.saveRoutineScheduleItems(items, day || item.day);
-  }
-
-  static updateRoutineScheduleItem(updatedItem: RoutineScheduleItem, day?: string): void {
-    const items = this.getRoutineScheduleItems(day || updatedItem.day);
-    const index = items.findIndex(i => i.id === updatedItem.id);
-    if (index !== -1) {
-      items[index] = { ...updatedItem, updatedAt: new Date() };
-      this.saveRoutineScheduleItems(items, day || updatedItem.day);
-    }
-  }
-
-  static deleteRoutineScheduleItem(itemId: string, day?: string): void {
-    const items = this.getRoutineScheduleItems(day);
-    const filteredItems = items.filter(i => i.id !== itemId);
-    this.saveRoutineScheduleItems(filteredItems, day);
-  }
 
   static getStorageInfo(): { used: number; available: number; total: number } {
     try {
