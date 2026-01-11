@@ -6,7 +6,7 @@ import { StorageService } from '@/services/storage.service';
 import { CustomCategoryService } from '@/services/custom-category.service';
 import { Budget, Transaction, BudgetCategory, TransactionType, Currency, BudgetType, BudgetPeriod, RecurrenceInterval } from '@/types';
 
-type Tab = 'dashboard' | 'budgets' | 'analytics' | 'incomes' | 'expenses';
+type Tab = 'dashboard' | 'budgets' | 'analytics' | 'incomes' | 'expenses' | 'debts' | 'investments';
 
 export default function BudgetTracker() {
   const [budgets, setBudgets] = useState<Budget[]>([]);
@@ -48,6 +48,7 @@ export default function BudgetTracker() {
   const [analyticsTo, setAnalyticsTo] = useState<string>('');
   
   // Income form state
+  const [showIncomeForm, setShowIncomeForm] = useState(false);
   const [editingIncomeId, setEditingIncomeId] = useState<string | null>(null);
   const [incomeForm, setIncomeForm] = useState({
     amount: '',
@@ -331,6 +332,8 @@ export default function BudgetTracker() {
             { id: 'incomes', label: 'Gelirler', icon: '💚' },
             { id: 'expenses', label: 'Giderler', icon: '❤️' },
             { id: 'budgets', label: 'Bütçeler', icon: '💰' },
+            { id: 'debts', label: 'Borçlar', icon: '💳' },
+            { id: 'investments', label: 'Yatırımlar', icon: '📊' },
             { id: 'analytics', label: 'Analiz', icon: '📈' }
           ] as { id: Tab; label: string; icon: string }[]).map((tab) => (
             <button
@@ -610,9 +613,24 @@ export default function BudgetTracker() {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Gelirler</h2>
+              <button
+                onClick={() => setShowIncomeForm(!showIncomeForm)}
+                className="flex items-center space-x-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors shadow-lg hover:shadow-xl"
+              >
+                <span>{showIncomeForm ? 'Gelir Ekle Formunu Kapat' : 'Gelir Ekle Formunu Aç'}</span>
+                <svg 
+                  className={`w-5 h-5 transition-transform ${showIncomeForm ? 'rotate-180' : ''}`} 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
             </div>
 
             {/* Income Form */}
+            {showIncomeForm && (
             <div className="glass rounded-2xl p-6 shadow-xl" data-income-form>
               <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
                 {editingIncomeId ? 'Gelir Düzenle' : 'Yeni Gelir Ekle'}
@@ -719,6 +737,7 @@ export default function BudgetTracker() {
                           accountTarget: '',
                           description: ''
                         });
+                        setShowIncomeForm(false);
                       }}
                       className="flex-1 px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium transition-colors hover:bg-gray-50 dark:hover:bg-gray-800"
                     >
@@ -764,6 +783,7 @@ export default function BudgetTracker() {
                         accountTarget: '',
                         description: ''
                       });
+                      setShowIncomeForm(false);
                     }}
                     className={`${editingIncomeId ? 'flex-1' : 'w-full'} px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors shadow-lg hover:shadow-xl`}
                   >
@@ -772,6 +792,7 @@ export default function BudgetTracker() {
                 </div>
               </div>
             </div>
+            )}
 
             {/* Income List */}
             <div className="glass rounded-2xl p-6 shadow-xl">
@@ -837,6 +858,7 @@ export default function BudgetTracker() {
                                   accountTarget: transaction.accountTarget || '',
                                   description: transaction.description || ''
                                 });
+                                setShowIncomeForm(true);
                                 // Scroll to form
                                 document.querySelector('[data-income-form]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                               }}
@@ -888,6 +910,26 @@ export default function BudgetTracker() {
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Giderler</h2>
             </div>
             {/* Content will be redesigned here */}
+          </div>
+        )}
+
+        {/* Debts Tab */}
+        {activeTab === 'debts' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Borçlar</h2>
+            </div>
+            {/* Content will be added later */}
+          </div>
+        )}
+
+        {/* Investments Tab */}
+        {activeTab === 'investments' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Yatırımlar</h2>
+            </div>
+            {/* Content will be added later */}
           </div>
         )}
 
