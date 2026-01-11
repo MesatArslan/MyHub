@@ -907,7 +907,25 @@ export default function BudgetTracker() {
             {/* Income List */}
             <div className="glass rounded-2xl p-6 shadow-xl">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white">Gelir Listesi</h3>
+                <div className="flex items-center space-x-4">
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">Gelir Listesi</h3>
+                  {(() => {
+                    const { startDate, endDate } = getIncomeDateRange(selectedFilterMonth);
+                    const totalIncome = transactions
+                      .filter(t => {
+                        if (t.type !== TransactionType.INCOME) return false;
+                        const transactionDate = new Date(t.date);
+                        return transactionDate >= startDate && transactionDate <= endDate;
+                      })
+                      .reduce((sum, t) => sum + t.amount, 0);
+                    
+                    return (
+                      <span className="text-lg font-semibold text-green-600 dark:text-green-400">
+                        ₺{formatTurkishNumber(totalIncome)}
+                      </span>
+                    );
+                  })()}
+                </div>
                 <div className="relative month-filter-container">
                   <button
                     onClick={() => setShowMonthFilter(!showMonthFilter)}
