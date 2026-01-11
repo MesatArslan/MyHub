@@ -17,7 +17,7 @@ export default function Navbar() {
       case '/password-manager':
         return 'Şifre Yöneticisi';
       case '/budget-tracker':
-        return 'Bütçe Takip';
+        return 'Bütçe Yönetimi';
       case '/routine-tracker':
         return 'Haftalık Program';
       default:
@@ -32,7 +32,7 @@ export default function Navbar() {
       case '/password-manager':
         return 'text-xl font-semibold text-slate-900 dark:text-white';
       case '/budget-tracker':
-        return 'text-4xl font-bold gradient-cool bg-clip-text text-transparent';
+        return 'text-xl font-semibold text-slate-900 dark:text-white';
       case '/routine-tracker':
         return 'text-xl font-semibold text-slate-900 dark:text-white';
       default:
