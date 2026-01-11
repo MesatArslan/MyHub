@@ -104,7 +104,7 @@ export default function RoutineScheduleForm({ selectedDay, unsavedItems, onUnsav
               <div className="md:col-span-1 flex justify-end">
                 <button
                   onClick={() => saveScheduleItem(item)}
-                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors duration-200"
+                  className="px-4 py-2 bg-pink-600 hover:bg-pink-700 text-white rounded-lg transition-colors duration-200 shadow-sm"
                   title="Kaydet"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

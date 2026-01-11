@@ -25,6 +25,8 @@ export default function RoutineTracker() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [savedItems, setSavedItems] = useState<RoutineScheduleItemResponseDto[]>([]);
   const [unsavedItems, setUnsavedItems] = useState<RoutineScheduleItem[]>([]);
+  const [copiedRoutine, setCopiedRoutine] = useState<RoutineScheduleItemResponseDto[] | null>(null);
+  const [copiedFromDay, setCopiedFromDay] = useState<string | null>(null);
 
   // Load programs for the selected day
   useEffect(() => {
@@ -248,6 +250,48 @@ export default function RoutineTracker() {
     setUnsavedItems([...unsavedItems, domainItem]);
   };
 
+  const handleCopyRoutine = () => {
+    // Copy all saved items for the current day and program
+    if (savedItems.length === 0) {
+      alert('Kopyalanacak rutin bulunamadı');
+      return;
+    }
+    setCopiedRoutine([...savedItems]);
+    setCopiedFromDay(selectedDay);
+    alert(`${savedItems.length} rutin öğesi kopyalandı`);
+  };
+
+  const handlePasteRoutine = () => {
+    if (!copiedRoutine || copiedRoutine.length === 0) {
+      alert('Yapıştırılacak rutin bulunamadı');
+      return;
+    }
+
+    // Check if we're pasting to the same day
+    if (copiedFromDay === selectedDay) {
+      alert('Aynı güne yapıştıramazsınız. Farklı bir gün seçin.');
+      return;
+    }
+
+    // Create new items for the target day
+    copiedRoutine.forEach((item) => {
+      const dto: CreateRoutineScheduleItemDto = {
+        startTime: item.startTime,
+        endTime: item.endTime,
+        whatToDo: item.whatToDo,
+        whereToDo: item.whereToDo,
+        day: selectedDay,
+      };
+      RoutineTrackerService.createScheduleItem(dto, selectedDay, selectedProgramId);
+    });
+
+    // Reload items to show the pasted routine
+    const updatedItems = RoutineTrackerService.getScheduleItems(selectedDay, selectedProgramId);
+    setSavedItems(updatedItems);
+    
+    alert(`${copiedRoutine.length} rutin öğesi yapıştırıldı`);
+  };
+
   return (
     <div className="relative min-h-screen">
       {/* Fixed Background */}
@@ -275,6 +319,10 @@ export default function RoutineTracker() {
             onEditItem={handleEditItem}
             onUnsavedItemsChange={setUnsavedItems}
             onReorderItems={handleReorderItems}
+            copiedRoutine={copiedRoutine}
+            copiedFromDay={copiedFromDay}
+            onCopyRoutine={handleCopyRoutine}
+            onPasteRoutine={handlePasteRoutine}
           />
         </div>
       </div>

@@ -29,6 +29,10 @@ export interface WeeklyDaySelectorProps {
   onEditItem?: (item: RoutineScheduleItemResponseDto) => void;
   onUnsavedItemsChange?: (items: RoutineScheduleItem[]) => void;
   onReorderItems?: (items: RoutineScheduleItemResponseDto[]) => void;
+  copiedRoutine?: RoutineScheduleItemResponseDto[] | null;
+  copiedFromDay?: string | null;
+  onCopyRoutine?: () => void;
+  onPasteRoutine?: () => void;
 }
 
 const DAYS_OF_WEEK = [
@@ -58,7 +62,11 @@ export default function WeeklyDaySelector({
   onDeleteItem,
   onEditItem,
   onUnsavedItemsChange,
-  onReorderItems
+  onReorderItems,
+  copiedRoutine = null,
+  copiedFromDay = null,
+  onCopyRoutine,
+  onPasteRoutine
 }: WeeklyDaySelectorProps) {
   
   const [editingProgramId, setEditingProgramId] = useState<string | null>(null);
@@ -153,24 +161,51 @@ export default function WeeklyDaySelector({
           </h2>
         </div>
         <div className="flex items-center gap-4">
-          <div className="text-sm text-gray-600 dark:text-gray-400">
-            Her gün için farklı rutinler oluşturun
+          <div className="flex items-center gap-2">
+            {/* Copy Button - Show when in edit mode and there are saved items */}
+            {isEditMode && savedItems.length > 0 && onCopyRoutine && (
+              <button
+                onClick={onCopyRoutine}
+                className="flex items-center px-4 py-2 bg-pink-500 hover:bg-pink-600 text-white rounded-lg transition-colors duration-200 shadow-sm"
+                title="Rutini Kopyala"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                Kopyala
+              </button>
+            )}
+            
+            {/* Paste Button - Show when in edit mode, there's a copied routine and we're on a different day */}
+            {isEditMode && copiedRoutine && copiedRoutine.length > 0 && copiedFromDay && copiedFromDay !== selectedDay && onPasteRoutine && (
+              <button
+                onClick={onPasteRoutine}
+                className="flex items-center px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition-colors duration-200 shadow-sm"
+                title="Rutini Yapıştır"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                Yapıştır
+              </button>
+            )}
+            
+            {onEditModeChange && (
+              <button
+                onClick={() => onEditModeChange(!isEditMode)}
+                className={`flex items-center px-4 py-2 rounded-lg transition-colors duration-200 ${
+                  isEditMode
+                    ? 'bg-pink-600 text-white hover:bg-pink-700'
+                    : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                }`}
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                {isEditMode ? 'Düzenleme Modu' : 'Düzenle'}
+              </button>
+            )}
           </div>
-          {onEditModeChange && (
-            <button
-              onClick={() => onEditModeChange(!isEditMode)}
-              className={`flex items-center px-4 py-2 rounded-lg transition-colors duration-200 ${
-                isEditMode
-                  ? 'bg-pink-600 text-white hover:bg-pink-700'
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-              }`}
-            >
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-              {isEditMode ? 'Düzenleme Modu' : 'Düzenle'}
-            </button>
-          )}
         </div>
       </div>
 
@@ -294,27 +329,26 @@ export default function WeeklyDaySelector({
         </div>
       )}
 
-      {/* Add Routine Button - Show under days boxes when in edit mode */}
-      {isEditMode && onAddRoutine && (
-        <div className="mt-4 flex justify-center">
-          <button
-            onClick={onAddRoutine}
-            className="flex items-center px-6 py-3 bg-pink-600 hover:bg-pink-700 text-white rounded-lg transition-colors duration-200 shadow-lg"
-          >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            Rutin Ekle
-          </button>
-        </div>
-      )}
-
       {/* Display saved schedule items - Always visible under the button */}
-      {displayItems.length > 0 && (
+      {(displayItems.length > 0 || isEditMode) && (
         <div className="mt-6">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
-            Rutin Programı
-          </h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+              Rutin Programı
+            </h3>
+            {/* Add Routine Button - Show on same row as heading when in edit mode */}
+            {isEditMode && onAddRoutine && (
+              <button
+                onClick={onAddRoutine}
+                className="flex items-center px-4 py-2 bg-pink-600 hover:bg-pink-700 text-white rounded-lg transition-colors duration-200 shadow-sm"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                Rutin Ekle
+              </button>
+            )}
+          </div>
           <div className="space-y-2">
             {displayItems.map((item, index) => (
               <div
@@ -454,7 +488,7 @@ export default function WeeklyDaySelector({
                 {/* Save button */}
                 <button
                   onClick={() => saveScheduleItem(item)}
-                  className="flex-shrink-0 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors duration-200 flex items-center gap-2 shadow-sm hover:shadow"
+                  className="flex-shrink-0 px-4 py-2 bg-pink-600 hover:bg-pink-700 text-white rounded-lg transition-colors duration-200 flex items-center gap-2 shadow-sm hover:shadow"
                   title="Kaydet"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
